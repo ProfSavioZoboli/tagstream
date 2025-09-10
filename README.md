@@ -47,6 +47,6 @@ O processo atual de empréstimo de notebooks é manual, suscetível a falhas, pe
 ## 📂 Estrutura do Repositório
 
 * `/diagramas`: Arquitetura da solução e outros fluxos.
-* `/firmware`: Código-fonte do firmware para o ESP32.
+* `/src`: Código-fonte do firmware para o ESP32.
 * `/database`: Scripts SQL para a criação do banco de dados.
 * `/nodered-flow`: Arquivo de backup do fluxo do Node-RED.

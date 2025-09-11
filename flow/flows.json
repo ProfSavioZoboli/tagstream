@@ -1,0 +1,22 @@
+[
+    {
+        "id": "dbcdaa52464d4572",
+        "type": "function",
+        "z": "1ad659de47d5c16b",
+        "name": "function 1",
+        "func": "// Dados de exemplo (em um projeto real, viria de um DB)\nconst users = {\n    \"708CE255\": { \"usuario\": \"Savio\", \"nivel_acesso\": 1 },\n    \"DEADBEEF\": { \"usuario\": \"Maria Silva\", \"nivel_acesso\": 1 },\n    \"A1B2C3D4\": { \"usuario\": \"Admin\", \"nivel_acesso\": 1 }\n};\n\n// Define o payload da resposta\nmsg.payload = users;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 180,
+        "wires": [
+            [
+                "3ecce33d7cec049c"
+            ]
+        ]
+    }
+]

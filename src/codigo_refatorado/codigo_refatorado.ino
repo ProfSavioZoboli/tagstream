@@ -36,12 +36,13 @@ const byte SS_PIN = 5;
 const byte RST_PIN = 2;
 
 // --- CONFIGURAÇÕES DE REDE E MQTT ---
-const char* ssid = "FIESC_IOT_EDU";
-const char* password = "8120gv08";
-const char* mqtt_server = "189.8.205.50";
-const char* mqtt_user = "profblu";
-const char* mqtt_pass = "ProFBlu@hotdog";
-const char* mqtt_topic_tags = "indaial/test";
+const char* ssid = "Smart 4.0 (3)";
+const char* password = "Smart4.0";
+const char* mqtt_server = "10.77.241.62";
+const char* mqtt_user = "senai";
+const char* mqtt_pass = "senai";
+const char* mqtt_topic_req_usrs = "/indaial/request/teste";
+const char* mqtt_topic_res_usrs = "/indaial/response/teste";
 
 // --- OBJETOS E CLIENTES ---
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -52,12 +53,22 @@ PubSubClient client(espClient);
 // --- ARMAZENAMENTO DINÂMICO DE TAGS ---
 const int MAX_TAGS = 20;   // Máximo de tags autorizadas que o sistema suporta
 const int TAG_LENGTH = 4;  // Tamanho do UID em bytes
-byte tagsAutorizadas[MAX_TAGS][TAG_LENGTH];
+// --- ESTRUTURA DE DADOS PARA USUÁRIOS ---
+struct Usuario {
+  byte uid[TAG_LENGTH];
+  char nome[32]; // Espaço para até 31 caracteres + terminador nulo
+  int nivelAcesso;
+};
+Usuario usuariosAutorizados[MAX_TAGS];
 int numeroDeTagsAutorizadas = 0;
 
 // --- MÁQUINA DE ESTADOS ---
-enum Estado { OCIOSO, AUTENTICADO, NAO_AUTENTICADO };
-Estado estadoAtual = OCIOSO;
+enum SistemaEstado { OCIOSO, OCUPADO};
+enum UsuarioEstado {NONE, AUTORIZADO, NAUTORIZADO};
+enum DadosEstado {DESATUALIZADO, SUJO, SINCRONIZADO};
+SistemaEstado sistemaEstadoAtual = SistemaEstado::OCIOSO;
+UsuarioEstado usuarioEstadoAtual = UsuarioEstado::NONE;
+DadosEstado dadosEstadoAtual = DadosEstado::DESATUALIZADO;
 unsigned long tempoEstadoMudou = 0;
 const int tempoDeExibicao = 3000; // 3 segundos para exibir o status
 
@@ -68,30 +79,34 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensagem recebida no tópico: ");
   Serial.println(topic);
 
-  StaticJsonDocument<512> doc;
-  DeserializationError error = deserializeJson(doc, payload, length);
+   if (strcmp(topic, mqtt_topic_res_usrs) == 0) {
+    Serial.println("Processando objeto de usuários...");
+    
+    StaticJsonDocument<1024> doc;
+    deserializeJson(doc, payload, length);
 
-  if (error) {
-    Serial.print("Falha ao parsear JSON: ");
-    Serial.println(error.c_str());
-    return;
-  }
+    numeroDeTagsAutorizadas = 0;
+    JsonObject root = doc.as<JsonObject>();
 
-  numeroDeTagsAutorizadas = 0; // Limpa a lista antiga
-  JsonArray arrayDeTags = doc.as<JsonArray>();
+    for (JsonPair kv : root) {
+      if (numeroDeTagsAutorizadas >= MAX_TAGS) break;
+      
+      const char* uidHex = kv.key().c_str();
+      JsonObject userData = kv.value().as<JsonObject>();
+      
+      const char* nome = userData["usuario"];
+      int nivel = userData["nivel_acesso"];
 
-  Serial.println("Atualizando lista de tags autorizadas:");
-  for (JsonVariant v : arrayDeTags) {
-    if (numeroDeTagsAutorizadas >= MAX_TAGS) {
-      Serial.println("Aviso: Número máximo de tags atingido.");
-      break;
-    }
-    const char* uidHex = v.as<const char*>();
-    if (hexStringToByteArray(uidHex, tagsAutorizadas[numeroDeTagsAutorizadas], TAG_LENGTH)) {
-      Serial.print("  - Adicionando tag: ");
-      Serial.println(uidHex);
+      // Converte o UID e copia os dados para nossa struct
+      hexStringToByteArray(uidHex, usuariosAutorizados[numeroDeTagsAutorizadas].uid, TAG_LENGTH);
+      strncpy(usuariosAutorizados[numeroDeTagsAutorizadas].nome, nome, sizeof(usuariosAutorizados[0].nome) - 1);
+      usuariosAutorizados[numeroDeTagsAutorizadas].nome[sizeof(usuariosAutorizados[0].nome) - 1] = '\0'; // Garante terminação nula
+      usuariosAutorizados[numeroDeTagsAutorizadas].nivelAcesso = nivel;
+
       numeroDeTagsAutorizadas++;
     }
+    Serial.print("\nQuantidade de usuários lidas:");
+    Serial.println(numeroDeTagsAutorizadas);
   }
 }
 
@@ -121,6 +136,14 @@ void setup() {
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+
+  //Atualiza leds
+  configLedsEstado();
+
+  //Sync
+
+  
+
 }
 
 // ====================================================================================
@@ -133,19 +156,17 @@ void loop() {
   }
   client.loop();
 
-  switch (estadoAtual) {
-    case OCIOSO:
+  switch (sistemaEstadoAtual) {
+    case SistemaEstado::OCIOSO:
       showMensagem("Aproxime a tag");
       readRFID(); // Tenta ler um cartão
       break;
 
-    case AUTENTICADO:
-    case NAO_AUTENTICADO:
-      // Verifica se o tempo de exibição do status já passou
-      if (millis() - tempoEstadoMudou > tempoDeExibicao) {
-        sinalSonoroLuminoso(false, true); // Desliga tudo
-        estadoAtual = OCIOSO;
-      }
+    case SistemaEstado::OCUPADO:
+      delay(3000);
+      sistemaEstadoAtual = SistemaEstado::OCIOSO;
+      usuarioEstadoAtual = UsuarioEstado::NONE;
+      configLedsEstado();
       break;
   }
 }
@@ -154,34 +175,45 @@ void loop() {
 // FUNÇÕES DE LÓGICA RFID E VALIDAÇÃO
 // ====================================================================================
 
-// <<< LÓGICA DE VALIDAÇÃO REFEITA >>>
+
 // Verifica se a tag lida está na nossa lista local de tags autorizadas
-bool isTagAutorizada() {
-  if (numeroDeTagsAutorizadas == 0) return false;
-  
+Usuario* getUsuarioAutorizado(byte* uid, byte uidSize) {
+  Usuario* usuario = getUsuario(uid,uidSize);
+  return usuario;    
+}
+
+
+// Procura por um UID e retorna um ponteiro para a struct do usuário, ou nullptr se não encontrar
+Usuario* getUsuario(byte* uid, byte uidSize) {
   for (int i = 0; i < numeroDeTagsAutorizadas; i++) {
-    if (memcmp(rfid.uid.uidByte, tagsAutorizadas[i], rfid.uid.size) == 0) {
-      return true; // Encontrou!
+    if (memcmp(uid, usuariosAutorizados[i].uid, uidSize) == 0) {
+      return &usuariosAutorizados[i]; // Retorna o endereço da struct encontrada
     }
   }
-  return false; // Não encontrou.
+  return nullptr; // Retorna nulo se não encontrou
 }
 
 // Função principal de leitura, agora com a nova validação
 void readRFID() {
   if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-    
-    if (isTagAutorizada()) {
-      estadoAtual = AUTENTICADO;
-      showMensagem("AUTENTICADO");
-      sinalSonoroLuminoso(true, false); // Sinal de sucesso
+    Usuario* usuario = getUsuarioAutorizado(rfid.uid.uidByte,rfid.uid.size);
+    if (usuario != nullptr) {
+      sistemaEstadoAtual = SistemaEstado::OCUPADO;
+      usuarioEstadoAtual = UsuarioEstado::AUTORIZADO;
+      String mensagem = "Bem vindo, ";
+      mensagem += usuario -> nome;
+      showMensagem(mensagem);
+      configLedsEstado();
+      sinalSonoro(2);
     } else {
-      estadoAtual = NAO_AUTENTICADO;
+      sistemaEstadoAtual = SistemaEstado::OCIOSO;
+      usuarioEstadoAtual = UsuarioEstado::NAUTORIZADO;
       showMensagem("NAO AUTORIZADO");
-      sinalSonoroLuminoso(false, false); // Sinal de falha
+      configLedsEstado();
+      sinalSonoro(3);
+      delay(2000);
+      usuarioEstadoAtual = UsuarioEstado::NONE;
     }
-    
-    tempoEstadoMudou = millis(); // Marca o tempo da mudança de estado
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
   }
@@ -192,34 +224,31 @@ void readRFID() {
 // ====================================================================================
 
 // Controla os LEDs e o Buzzer
-void sinalSonoroLuminoso(bool autenticado, bool desliga) {
-  if (desliga) {
-    digitalWrite(LED_OCIOSO, LOW);
-    digitalWrite(LED_OCUPADO, LOW);
-    digitalWrite(BUZZER, LOW);
-    return;
-  }
+void configLedsEstado(){
 
-  if (autenticado) {
-    digitalWrite(LED_OCIOSO, HIGH);
-    digitalWrite(LED_OCUPADO, LOW);
-    digitalWrite(BUZZER, HIGH);
-    delay(100);
-    digitalWrite(BUZZER, LOW);
-  } else {
-    digitalWrite(LED_OCIOSO, LOW);
-    digitalWrite(LED_OCUPADO, HIGH);
-    digitalWrite(BUZZER, HIGH);
-    delay(500);
-    digitalWrite(BUZZER, LOW);
+  digitalWrite(LED_OCIOSO,LOW);
+  digitalWrite(LED_OCUPADO,LOW);
+
+  if(sistemaEstadoAtual == SistemaEstado::OCIOSO){
+    digitalWrite(LED_OCIOSO,HIGH);
+  }
+  if(sistemaEstadoAtual == SistemaEstado::OCUPADO){
+    digitalWrite(LED_OCUPADO,HIGH);
   }
 }
 
+void sinalSonoro(int rounds){
+  for(int i=0;i<rounds;i++){
+    digitalWrite(BUZZER, HIGH);
+    delay(100);
+    digitalWrite(BUZZER, LOW);
+    delay(100);
+  }
+}
+
+
 // Mostra mensagens no display OLED
 void showMensagem(String mensagem) {
-  static String ultimaMensagem = "";
-  if (mensagem == ultimaMensagem) return; // Evita redesenhar a tela desnecessariamente
-
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
@@ -233,7 +262,6 @@ void showMensagem(String mensagem) {
 
   display.println(mensagem);
   display.display();
-  ultimaMensagem = mensagem;
 }
 
 // ====================================================================================
@@ -259,10 +287,12 @@ void setup_wifi() {
   Serial.print("Conectando a ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
+  float counter = 1.0; // Mude para float
+while (WiFi.status() != WL_CONNECTED) {
+    delay(500 * counter);
+    counter += 0.1;
+}
+
   Serial.println("");
   Serial.println("WiFi conectado");
   Serial.print("Endereco IP: ");
@@ -277,7 +307,10 @@ void reconnect_mqtt() {
         if (client.connect("ESP32_RFID_Client_01", mqtt_user, mqtt_pass)) {
             Serial.println("conectado!");
             // Reinscreve no tópico após a reconexão
-            client.subscribe(mqtt_topic_tags);
+            client.subscribe(mqtt_topic_res_usrs);
+
+
+            syncListaUsuarios();
         } else {
             Serial.print("falhou, rc=");
             Serial.print(client.state());
@@ -295,4 +328,58 @@ void reconnect_mqtt() {
             delay(5000);
         }
     }
+}
+
+// Função auxiliar para imprimir um UID no formato "XX XX XX XX" no Monitor Serial
+void imprimirUIDSerial(byte* buffer, byte bufferSize) {
+  for (byte i = 0; i < bufferSize; i++) {
+    Serial.print(buffer[i] < 0x10 ? " 0" : " ");
+    Serial.print(buffer[i], HEX);
+  }
+}
+
+// ======================================================================================
+// REQUISIÇÕES MQTT
+// ======================================================================================
+
+// Envia uma requisição para o Node-RED pedindo informações sobre uma tag específica
+void solicitarInfoDaTag(byte* uid, byte uidSize) {
+  if (!client.connected()) {
+    Serial.println("Não conectado ao MQTT. Requisição cancelada.");
+    return;
+  }
+
+  // 1. Converte o UID de bytes para uma string Hexadecimal
+  String uidHex = "";
+  for (byte i = 0; i < uidSize; i++) {
+    if (uid[i] < 0x10) { uidHex += "0"; }
+    uidHex += String(uid[i], HEX);
+  }
+  uidHex.toUpperCase();
+
+  // 2. Monta a mensagem de requisição em JSON
+  StaticJsonDocument<200> doc;
+  doc["tagId"] = uidHex;
+
+  char jsonBuffer[200];
+  serializeJson(doc, jsonBuffer);
+
+  // 3. Publica a mensagem no tópico de requisição
+  client.publish(mqtt_topic_req_usrs, jsonBuffer);
+  
+  Serial.print("Requisição enviada para o tópico '");
+  Serial.print(mqtt_topic_req_usrs);
+  Serial.print("' com a tag: ");
+  Serial.println(uidHex);
+}
+
+void syncListaUsuarios(){
+  if (!client.connected()) {
+    Serial.println("Não conectado ao MQTT. Requisição cancelada.");
+    return;
+  }
+  client.publish(mqtt_topic_req_usrs,"");
+  Serial.print("MQTT: Enviado requisicao no topico ");
+  Serial.print(mqtt_topic_req_usrs);
+  Serial.println(" para atualizacao da lista de usuarios");
 }

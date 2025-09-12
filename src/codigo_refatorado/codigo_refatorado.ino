@@ -9,6 +9,11 @@
  * ====================================================================================
  */
 
+// --- BIBLIOTECAS DE APOIO ---
+
+#include <chrono>
+#include "pitches.h" //Notas musicais, porque sim
+
 // --- BIBLIOTECAS DE HARDWARE ---
 #include <SPI.h>
 #include <MFRC522.h>
@@ -41,8 +46,8 @@ const char* password = "Smart4.0";
 const char* mqtt_server = "10.77.241.62";
 const char* mqtt_user = "senai";
 const char* mqtt_pass = "senai";
-const char* mqtt_topic_req_usrs = "/indaial/request/teste";
-const char* mqtt_topic_res_usrs = "/indaial/response/teste";
+const char* mqtt_topic_req_usrs = "/indaial/req/usuarios";
+const char* mqtt_topic_res_usrs = "/indaial/res/usuarios";
 
 // --- OBJETOS E CLIENTES ---
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -61,11 +66,13 @@ struct Usuario {
 };
 Usuario usuariosAutorizados[MAX_TAGS];
 int numeroDeTagsAutorizadas = 0;
+unsigned long long timestampDaListaLocal = 0;
+unsigned long long lastSync = 0;
 
 // --- MÁQUINA DE ESTADOS ---
 enum SistemaEstado { OCIOSO, OCUPADO};
 enum UsuarioEstado {NONE, AUTORIZADO, NAUTORIZADO};
-enum DadosEstado {DESATUALIZADO, SUJO, SINCRONIZADO};
+enum DadosEstado {DESATUALIZADO, SUJO, SINCRONIZADO,SINCRONIZANDO};
 SistemaEstado sistemaEstadoAtual = SistemaEstado::OCIOSO;
 UsuarioEstado usuarioEstadoAtual = UsuarioEstado::NONE;
 DadosEstado dadosEstadoAtual = DadosEstado::DESATUALIZADO;
@@ -80,33 +87,76 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println(topic);
 
    if (strcmp(topic, mqtt_topic_res_usrs) == 0) {
-    Serial.println("Processando objeto de usuários...");
+    Serial.println("Mensagem de usuários recebida. Processando...");
+
+  // 1. Parsear o JSON recebido
+  StaticJsonDocument<1024> doc; // Aumente se a lista for muito grande
+  DeserializationError error = deserializeJson(doc, payload, length);
+
+  if (error) {
+    Serial.print("Falha ao parsear JSON: ");
+    Serial.println(error.c_str());
+    dadosEstadoAtual = DadosEstado::DESATUALIZADO;
+    return;
+  }
+
+  // 2. Extrair o timestamp e o objeto aninhado 'users'
+  unsigned long long novoTimestamp = doc["last_updated"];
+  JsonObject users = doc["users"];
+
+  // 3. Lógica de Sincronização: verificar se os dados são realmente novos
+  if (novoTimestamp <= timestampDaListaLocal) {
+    Serial.println("Dados recebidos não são novos. Atualização ignorada.");
+    dadosEstadoAtual = DadosEstado::SINCRONIZADO;
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    lastSync = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
     
-    StaticJsonDocument<1024> doc;
-    deserializeJson(doc, payload, length);
+    return;
+  }
+  
+  // 4. Verificar se o objeto 'users' realmente existe no JSON
+  if (users.isNull()) {
+      Serial.println("Erro: O JSON recebido não contém o objeto 'users'.");
+      dadosEstadoAtual = DadosEstado::DESATUALIZADO;
+      return;
+  }
 
-    numeroDeTagsAutorizadas = 0;
-    JsonObject root = doc.as<JsonObject>();
+  // 5. Se os dados são novos, limpar a lista antiga e processar a nova
+  Serial.println("Dados novos detectados. Atualizando a lista de usuários...");
+  numeroDeTagsAutorizadas = 0;
 
-    for (JsonPair kv : root) {
-      if (numeroDeTagsAutorizadas >= MAX_TAGS) break;
-      
-      const char* uidHex = kv.key().c_str();
-      JsonObject userData = kv.value().as<JsonObject>();
-      
-      const char* nome = userData["usuario"];
-      int nivel = userData["nivel_acesso"];
-
-      // Converte o UID e copia os dados para nossa struct
-      hexStringToByteArray(uidHex, usuariosAutorizados[numeroDeTagsAutorizadas].uid, TAG_LENGTH);
-      strncpy(usuariosAutorizados[numeroDeTagsAutorizadas].nome, nome, sizeof(usuariosAutorizados[0].nome) - 1);
-      usuariosAutorizados[numeroDeTagsAutorizadas].nome[sizeof(usuariosAutorizados[0].nome) - 1] = '\0'; // Garante terminação nula
-      usuariosAutorizados[numeroDeTagsAutorizadas].nivelAcesso = nivel;
-
-      numeroDeTagsAutorizadas++;
+  // Itera sobre cada par chave:valor DENTRO do objeto 'users'
+  for (JsonPair kv : users) {
+    if (numeroDeTagsAutorizadas >= MAX_TAGS) {
+      Serial.println("Aviso: Número máximo de tags atingido. Alguns usuários foram ignorados.");
+      break;
     }
-    Serial.print("\nQuantidade de usuários lidas:");
-    Serial.println(numeroDeTagsAutorizadas);
+    
+    // O resto da lógica é idêntico ao que você já tinha, mas agora dentro deste novo contexto
+    const char* uidHex = kv.key().c_str();
+    JsonObject userData = kv.value().as<JsonObject>();
+    
+    const char* nome = userData["usuario"];
+    int nivel = userData["nivel_acesso"];
+
+    // Converte o UID e copia os dados para nossa struct
+    hexStringToByteArray(uidHex, usuariosAutorizados[numeroDeTagsAutorizadas].uid, TAG_LENGTH);
+    strncpy(usuariosAutorizados[numeroDeTagsAutorizadas].nome, nome, sizeof(usuariosAutorizados[0].nome) - 1);
+    usuariosAutorizados[numeroDeTagsAutorizadas].nome[sizeof(usuariosAutorizados[0].nome) - 1] = '\0'; // Garante terminação nula
+    usuariosAutorizados[numeroDeTagsAutorizadas].nivelAcesso = nivel;
+
+    numeroDeTagsAutorizadas++;
+  }
+
+  // 6. Se a atualização foi bem-sucedida, guardar o novo timestamp
+  timestampDaListaLocal = novoTimestamp;
+  dadosEstadoAtual = DadosEstado::SINCRONIZADO;
+  auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    lastSync = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+  Serial.print("Lista de usuários atualizada com sucesso. Novo timestamp local: ");
+  Serial.println(timestampDaListaLocal);
   }
 }
 
@@ -131,6 +181,9 @@ void setup() {
   
   showMensagem("Iniciando...");
   delay(1000);
+  //tocarMusicaZelda();
+  tocarCantinaBand();
+
 
   // Conecta à rede
   setup_wifi();
@@ -139,10 +192,6 @@ void setup() {
 
   //Atualiza leds
   configLedsEstado();
-
-  //Sync
-
-  
 
 }
 
@@ -155,6 +204,23 @@ void loop() {
     reconnect_mqtt();
   }
   client.loop();
+
+  if(client.connected()){
+    auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    auto milis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    //long horasPassadasDaUltimaSync = (milis - lastSync)/(1000*60*60);
+    long horasPassadasDaUltimaSync = (milis - lastSync)/(1000*60); // Teste com 4 minutos para ver acontecendo
+    if(horasPassadasDaUltimaSync > 4){
+      dadosEstadoAtual = DadosEstado::DESATUALIZADO;
+    }
+
+    if(dadosEstadoAtual == DadosEstado::DESATUALIZADO){
+      syncListaUsuarios();
+    }
+  }
+
+  
 
   switch (sistemaEstadoAtual) {
     case SistemaEstado::OCIOSO:
@@ -169,6 +235,7 @@ void loop() {
       configLedsEstado();
       break;
   }
+  delay(100);
 }
 
 // ====================================================================================
@@ -204,13 +271,14 @@ void readRFID() {
       mensagem += usuario -> nome;
       showMensagem(mensagem);
       configLedsEstado();
-      sinalSonoro(2);
+      //sinalSonoro(2,349);
+      tocarMarioMoeda();
     } else {
       sistemaEstadoAtual = SistemaEstado::OCIOSO;
       usuarioEstadoAtual = UsuarioEstado::NAUTORIZADO;
       showMensagem("NAO AUTORIZADO");
       configLedsEstado();
-      sinalSonoro(3);
+      tocarSomDeFalha();
       delay(2000);
       usuarioEstadoAtual = UsuarioEstado::NONE;
     }
@@ -237,11 +305,9 @@ void configLedsEstado(){
   }
 }
 
-void sinalSonoro(int rounds){
+void sinalSonoro(int rounds,int tom){
   for(int i=0;i<rounds;i++){
-    digitalWrite(BUZZER, HIGH);
-    delay(100);
-    digitalWrite(BUZZER, LOW);
+    tone(BUZZER,tom,100);
     delay(100);
   }
 }
@@ -288,10 +354,10 @@ void setup_wifi() {
   Serial.println(ssid);
   WiFi.begin(ssid, password);
   float counter = 1.0; // Mude para float
-while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500 * counter);
     counter += 0.1;
-}
+  }
 
   Serial.println("");
   Serial.println("WiFi conectado");
@@ -308,9 +374,6 @@ void reconnect_mqtt() {
             Serial.println("conectado!");
             // Reinscreve no tópico após a reconexão
             client.subscribe(mqtt_topic_res_usrs);
-
-
-            syncListaUsuarios();
         } else {
             Serial.print("falhou, rc=");
             Serial.print(client.state());
@@ -374,12 +437,148 @@ void solicitarInfoDaTag(byte* uid, byte uidSize) {
 }
 
 void syncListaUsuarios(){
-  if (!client.connected()) {
-    Serial.println("Não conectado ao MQTT. Requisição cancelada.");
-    return;
-  }
+  dadosEstadoAtual = DadosEstado::SINCRONIZANDO;
   client.publish(mqtt_topic_req_usrs,"");
   Serial.print("MQTT: Enviado requisicao no topico ");
   Serial.print(mqtt_topic_req_usrs);
   Serial.println(" para atualizacao da lista de usuarios");
+}
+
+
+
+// ====================================================================================
+// FUNÇÕES DE "FIRULA" :)
+// ====================================================================================
+
+void tocarMusicaZelda() {
+  // Notas da melodia "Secret Found" do Zelda
+  int melody[] = {
+    NOTE_G4, NOTE_FS4, NOTE_DS4, NOTE_A4, NOTE_GS4, NOTE_E4, NOTE_GS4, NOTE_C5
+  };
+
+  // Duração de cada nota: 4 = semínima, 8 = colcheia, etc.
+  int noteDurations[] = {
+    8, 8, 8, 4, 8, 4, 8, 2
+  };
+
+  Serial.println("Tocando a música de sucesso do Zelda...");
+
+  for (int thisNote = 0; thisNote < 8; thisNote++) {
+    // Calcula a duração da nota em milissegundos
+    int noteDuration = 1000 / noteDurations[thisNote];
+    
+    // Toca a nota
+    // tone(pino, frequencia, duracao)
+    tone(BUZZER, melody[thisNote], noteDuration);
+
+    // Adiciona uma pequena pausa entre as notas para que não se misturem
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    
+    // Para a reprodução da nota (opcional, mas bom para garantir)
+    noTone(BUZZER);
+  }
+  Serial.println("Música finalizada.");
+}
+
+void tocarCantinaBand() {
+  // A primeira parte da melodia da Cantina Band
+  int melody[] = {
+    // Frase 1
+    NOTE_A4, NOTE_D5, NOTE_A4, NOTE_D5, NOTE_A4, NOTE_G4, NOTE_FS4, NOTE_E4, NOTE_D4,
+    // Frase 2
+    NOTE_A4, NOTE_D5, NOTE_A4, NOTE_D5, NOTE_A4, NOTE_G4, NOTE_FS4, NOTE_E4, NOTE_D4,
+    // Frase 3 (a parte que sobe)
+    NOTE_A4, NOTE_D5, NOTE_A4, NOTE_D5, NOTE_A4, NOTE_AS4, NOTE_B4, NOTE_C5, NOTE_CS5,
+    // Frase 4 (repetição da 2)
+    NOTE_A4, NOTE_D5, NOTE_A4, NOTE_D5, NOTE_A4, NOTE_G4, NOTE_FS4, NOTE_E4, NOTE_D4
+  };
+
+  // Duração de cada nota
+  // 8 = colcheia, 4 = semínima. Negativo = nota pontuada.
+  int noteDurations[] = {
+    // Frase 1
+    8, 4, 8, 4, 8, 8, 8, 8, 4,
+    // Frase 2
+    8, 4, 8, 4, 8, 8, 8, 8, 4,
+    // Frase 3
+    8, 4, 8, 4, 8, 8, 8, 8, 4,
+    // Frase 4
+    -4, 8, 8, 8, 8, 8, 8, 8, 4
+  };
+
+  Serial.println("Tocando a Cantina Band...");
+
+  // Calcula o número total de notas na melodia
+  int songLength = sizeof(melody) / sizeof(melody[0]);
+
+  for (int thisNote = 0; thisNote < songLength; thisNote++) {
+    // Calcula a duração base da nota. abs() remove o sinal negativo para o cálculo.
+    int noteDuration = 1000 / abs(noteDurations[thisNote]);
+
+    // Se a duração for negativa no array, é uma nota pontuada (dura 1.5x mais)
+    if (noteDurations[thisNote] < 0) {
+      noteDuration *= 1.5;
+    }
+
+    // Toca a nota
+    tone(BUZZER, melody[thisNote], noteDuration);
+
+    // Pausa entre as notas para um som mais limpo
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    
+    // Para a reprodução
+    noTone(BUZZER);
+  }
+  Serial.println("Música finalizada.");
+}
+
+void tocarMarioMoeda() {
+  // Melodia "1-Up" do Super Mario Bros.
+  int melody[] = {
+    NOTE_E5, NOTE_G5, NOTE_E6, NOTE_C6, NOTE_D6, NOTE_G6
+  };
+
+  // Duração de cada nota. São todas bem rápidas.
+  int noteDurations[] = {
+    16, 16, 16, 16, 16, 16
+  };
+
+  int songLength = sizeof(melody) / sizeof(melody[0]);
+
+  for (int thisNote = 0; thisNote < songLength; thisNote++) {
+    int noteDuration = 1000 / noteDurations[thisNote];
+    tone(BUZZER, melody[thisNote], noteDuration);
+    
+    // Pausa um pouco menor para um som mais contínuo e rápido
+    int pauseBetweenNotes = noteDuration * 1.1; 
+    delay(pauseBetweenNotes);
+    
+    noTone(BUZZER);
+  }
+}
+
+void tocarSomDeFalha() {
+  // Melodia grave e descendente para indicar falha
+  int melody[] = {
+    NOTE_G3, NOTE_FS3, NOTE_F3, NOTE_E3
+  };
+
+  // Duração de cada nota. A última é mais longa para dar um final.
+  int noteDurations[] = {
+    12, 12, 12, 6
+  };
+
+  int songLength = sizeof(melody) / sizeof(melody[0]);
+
+  for (int thisNote = 0; thisNote < songLength; thisNote++) {
+    int noteDuration = 1200 / noteDurations[thisNote]; // Um pouco mais lento que o normal
+    tone(BUZZER, melody[thisNote], noteDuration);
+    
+    int pauseBetweenNotes = noteDuration * 1.2;
+    delay(pauseBetweenNotes);
+    
+    noTone(BUZZER);
+  }
 }

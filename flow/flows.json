@@ -1,19 +1,35 @@
 [
     {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "Teste Postgres",
+        "disabled": false,
+        "info": ""
+    },
+    {
         "id": "374f0ed2f7d0e0ac",
         "type": "tab",
-        "label": "Fluxo 1",
-        "disabled": false,
+        "label": "Broker teste",
+        "disabled": true,
         "info": "",
         "env": []
     },
     {
         "id": "1ad659de47d5c16b",
         "type": "tab",
-        "label": "Fluxo 2",
+        "label": "Atualização de dados de usuário",
         "disabled": false,
         "info": "",
         "env": []
+    },
+    {
+        "id": "f2758cc3e19c29e8",
+        "type": "postgresdb",
+        "cfgname": "Base de dados",
+        "hostname": "192.168.250.61",
+        "port": 5432,
+        "db": "acesso_equipamentos",
+        "ssl": false
     },
     {
         "id": "87441f1effcbbaa8",
@@ -45,6 +61,116 @@
         "willMsg": {},
         "userProps": "",
         "sessionExpiry": ""
+    },
+    {
+        "id": "39c1af03843a6b79",
+        "type": "mqtt-broker",
+        "name": "Broker ReLab",
+        "broker": "192.168.250.3",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "3cc11d24.ff01a2",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "WARNING: please check you have started this container with a volume that is mounted to /data\\n otherwise any flow changes are lost when you redeploy or upgrade the container\\n (e.g. upgrade to a more recent node-red docker image).\\n  If you are using named volumes you can ignore this warning.\\n Double click or see info side panel to learn how to start Node-RED in Docker to save your work",
+        "info": "\nTo start docker with a bind mount volume (-v option), for example:\n\n```\ndocker run -it -p 1880:1880 -v /home/user/node_red_data:/data --name mynodered nodered/node-red\n```\n\nwhere `/home/user/node_red_data` is a directory on your host machine where you want to store your flows.\n\nIf you do not do this then you can experiment and redploy flows, but if you restart or upgrade the container the flows will be disconnected and lost. \n\nThey will still exist in a hidden data volume, which can be recovered using standard docker techniques, but that is much more complex than just starting with a named volume as described above.",
+        "x": 350,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "f5aadb2b50cc2cd2",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "select 1 as teste;",
+        "payloadType": "str",
+        "x": 180,
+        "y": 220,
+        "wires": [
+            [
+                "b1b455435a5c6989"
+            ]
+        ]
+    },
+    {
+        "id": "4b1c30ce862ba0d0",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "b1b455435a5c6989",
+        "type": "postgres",
+        "z": "f6f2187d.f17ca8",
+        "postgresdb": "f2758cc3e19c29e8",
+        "name": "Teste",
+        "output": true,
+        "perrow": false,
+        "rowspermsg": "1",
+        "return_on_error": false,
+        "limit_queries": "0",
+        "limit_by": "payload",
+        "limit_value": "1",
+        "limit_drop_intermediate": false,
+        "limit_drop_if_in_queue": false,
+        "outputs": 1,
+        "x": 370,
+        "y": 220,
+        "wires": [
+            [
+                "4b1c30ce862ba0d0"
+            ]
+        ]
     },
     {
         "id": "a5f5cb12af081eab",
@@ -79,7 +205,7 @@
         "topic": "/indaial/req/usuarios",
         "qos": "0",
         "datatype": "auto-detect",
-        "broker": "87441f1effcbbaa8",
+        "broker": "39c1af03843a6b79",
         "nl": false,
         "rap": true,
         "rh": 0,
@@ -123,7 +249,7 @@
         "userProps": "",
         "correl": "",
         "expiry": "",
-        "broker": "87441f1effcbbaa8",
+        "broker": "39c1af03843a6b79",
         "x": 980,
         "y": 180,
         "wires": []
@@ -377,5 +503,14 @@
         "x": 610,
         "y": 340,
         "wires": []
+    },
+    {
+        "id": "02fe437ed3fa8c67",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-re-postgres": "0.3.4",
+            "node-red-contrib-aedes": "0.15.0"
+        }
     }
 ]

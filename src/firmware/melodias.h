@@ -7,5 +7,6 @@ void tocarMusicaZelda();
 void tocarCantinaBand();
 void tocarMarioMoeda();
 void tocarSomDeFalha();
+void tocarStarWars();
 
 #endif

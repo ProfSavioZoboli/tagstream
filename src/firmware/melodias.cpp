@@ -4,6 +4,7 @@
 #include "melodias.h"
 #include "config.h"
 #include "pitches.h"
+
 void tocarMusicaZelda() {
   // Notas da melodia "Secret Found" do Zelda
   int melody[] = {
@@ -88,27 +89,46 @@ void tocarCantinaBand() {
   Serial.println("Música finalizada.");
 }
 
-void tocarMarioMoeda() {
+void tocarMarioMoeda() { // Mantive o nome da função para não precisar mudar em outros lugares
+  // --- DADOS DA MÚSICA ---
+  // Um tempo bem rápido, característico do som
+  int tempo = 200;
+
   // Melodia "1-Up" do Super Mario Bros.
   int melody[] = {
     NOTE_E5, NOTE_G5, NOTE_E6, NOTE_C6, NOTE_D6, NOTE_G6
   };
 
-  // Duração de cada nota. São todas bem rápidas.
+  // Duração de cada nota. A última nota é um pouco mais longa que as outras.
+  // 12 é uma tercina (triplet), 6 é o dobro da duração.
   int noteDurations[] = {
-    16, 16, 16, 16, 16, 16
+    12, 12, 12, 12, 12, 6
   };
+  
+  // --- LÓGICA DE REPRODUÇÃO (baseada em BPM) ---
+  Serial.println("Tocando som de 1-Up do Mario...");
 
   int songLength = sizeof(melody) / sizeof(melody[0]);
 
+  // Calcula a duração de uma semibreve (nota inteira) em milissegundos
+  int wholenote = (60000 * 4) / tempo;
+  int divider = 0, noteDuration = 0;
+
   for (int thisNote = 0; thisNote < songLength; thisNote++) {
-    int noteDuration = 1000 / noteDurations[thisNote];
-    tone(BUZZER, melody[thisNote], noteDuration);
+    divider = noteDurations[thisNote];
+    if (divider > 0) {
+      noteDuration = wholenote / divider;
+    } else if (divider < 0) {
+      noteDuration = wholenote / abs(divider);
+      noteDuration *= 1.5;
+    }
 
-    // Pausa um pouco menor para um som mais contínuo e rápido
-    int pauseBetweenNotes = noteDuration * 1.1;
-    delay(pauseBetweenNotes);
+    // Toca a nota por 90% de sua duração para um som mais "seco"
+    tone(BUZZER, melody[thisNote], noteDuration * 0.9);
 
+    // Aguarda a duração completa da nota
+    delay(noteDuration);
+    
     noTone(BUZZER);
   }
 }
@@ -135,4 +155,52 @@ void tocarSomDeFalha() {
 
     noTone(BUZZER);
   }
+}
+
+void tocarStarWars() {
+  // --- DADOS DA MÚSICA ---
+  // Velocidade da música em batidas por minuto (BPM)
+  int tempo = 108;
+
+  // Melodia em formato intercalado: {nota, duração, nota, duração, ...}
+  // Duração: 4 = semínima, 8 = colcheia, etc.
+  // Duração negativa = nota pontuada (dura 1.5x mais)
+  int melody[] = {
+    NOTE_AS4,8, NOTE_AS4,8, NOTE_AS4,8,
+    NOTE_F5,2, NOTE_C6,2,
+    NOTE_AS5,8, NOTE_A5,8, NOTE_G5,8, NOTE_F6,2, NOTE_C6,4,  
+    NOTE_AS5,8, NOTE_A5,8, NOTE_G5,8, NOTE_F6,2, NOTE_C6,4,  
+    NOTE_AS5,8, NOTE_A5,8, NOTE_AS5,8, NOTE_G5,2
+  };
+
+  // --- LÓGICA DE REPRODUÇÃO ---
+  Serial.println("Tocando o tema de Star Wars...");
+
+  // Calcula o número de pares (nota + duração) na melodia
+  int notes = sizeof(melody) / sizeof(melody[0]) / 2;
+
+  // Calcula a duração de uma semibreve (nota inteira) em milissegundos
+  int wholenote = (60000 * 4) / tempo;
+  int divider = 0, noteDuration = 0;
+
+  // Itera sobre a melodia, pulando de 2 em 2 para pegar a nota e sua duração
+  for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
+    divider = melody[thisNote + 1];
+    if (divider > 0) {
+      noteDuration = wholenote / divider;
+    } else if (divider < 0) {
+      noteDuration = wholenote / abs(divider);
+      noteDuration *= 1.5; // Aumenta a duração para notas pontuadas
+    }
+
+    // Toca a nota por 90% da sua duração para criar um efeito staccato
+    tone(BUZZER, melody[thisNote], noteDuration * 0.9);
+
+    // Aguarda a duração completa da nota antes de ir para a próxima
+    delay(noteDuration);
+    
+    // Para a geração do som
+    noTone(BUZZER);
+  }
+  Serial.println("Música finalizada.");
 }

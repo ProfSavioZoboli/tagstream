@@ -8,6 +8,7 @@
 #include "config.h"
 #include "secrets.h"
 #include "rfid_handler.h"  // Para ter acesso à struct Usuario
+#include "utils.h"
 
 // Variáveis globais do .ino que este arquivo precisa conhecer
 extern PubSubClient client;
@@ -73,6 +74,10 @@ void syncListaUsuarios() {
   Serial.println(" para atualizacao da lista de usuarios");
 }
 
+void sendUsuarioLogado(){
+  
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensagem recebida no tópico: ");
   Serial.println(topic);
@@ -99,9 +104,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if (novoTimestamp <= timestampDaListaLocal) {
       Serial.println("Dados recebidos não são novos. Atualização ignorada.");
       dadosEstadoAtual = DadosEstado::SINCRONIZADO;
-      auto now = std::chrono::system_clock::now();
-      auto duration = now.time_since_epoch();
-      lastSync = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+      lastSync = getTimestampAtual();
 
       return;
     }
@@ -143,9 +146,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // 6. Se a atualização foi bem-sucedida, guardar o novo timestamp
     timestampDaListaLocal = novoTimestamp;
     dadosEstadoAtual = DadosEstado::SINCRONIZADO;
-    auto now = std::chrono::system_clock::now();
-    auto duration = now.time_since_epoch();
-    lastSync = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    lastSync = getTimestampAtual();
     Serial.print("Lista de usuários atualizada com sucesso. Novo timestamp local: ");
     Serial.println(timestampDaListaLocal);
   }

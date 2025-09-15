@@ -14,7 +14,11 @@ struct Usuario {
 
 // Declaração de funções
 void readRFID();
+void rejectUsuario();
+void iniciaEmprestimo(Usuario* usuario);
+void finalizaEmprestimo(Usuario* usuario);
 Usuario* getUsuarioAutorizado(byte* uid, byte uidSize);
 Usuario* getUsuario(byte* uid, byte uidSize);
+
 
 #endif

@@ -1,22 +1,381 @@
 [
     {
-        "id": "dbcdaa52464d4572",
+        "id": "374f0ed2f7d0e0ac",
+        "type": "tab",
+        "label": "Fluxo 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "1ad659de47d5c16b",
+        "type": "tab",
+        "label": "Fluxo 2",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "87441f1effcbbaa8",
+        "type": "mqtt-broker",
+        "name": "Broker local",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "a5f5cb12af081eab",
+        "type": "aedes broker",
+        "z": "374f0ed2f7d0e0ac",
+        "name": "Broker",
+        "mqtt_port": 1883,
+        "mqtt_ws_bind": "port",
+        "mqtt_ws_port": "",
+        "mqtt_ws_path": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "persistence_bind": "memory",
+        "dburl": "",
+        "usetls": false,
+        "x": 210,
+        "y": 100,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "3d648294a10614b1",
+        "type": "mqtt in",
+        "z": "1ad659de47d5c16b",
+        "name": "Requisição do JSON de usuários",
+        "topic": "/indaial/req/usuarios",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "87441f1effcbbaa8",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 170,
+        "y": 100,
+        "wires": [
+            [
+                "27043835d1c6688f",
+                "2f69f3b442eb814e"
+            ]
+        ]
+    },
+    {
+        "id": "27043835d1c6688f",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "Debug - Mensagem recebida no tópico",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 510,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "3ecce33d7cec049c",
+        "type": "mqtt out",
+        "z": "1ad659de47d5c16b",
+        "name": "Resposta com o JSON de usuários",
+        "topic": "/indaial/res/usuarios",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "87441f1effcbbaa8",
+        "x": 980,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "0ac3759b9bf8f8f2",
+        "type": "file",
+        "z": "1ad659de47d5c16b",
+        "name": "Armazena usuários",
+        "filename": "C:/usuarios/savio_zoboli/documentos/usuarios.json",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "utf8",
+        "x": 910,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "af3f6edf6e9b13f9",
         "type": "function",
         "z": "1ad659de47d5c16b",
-        "name": "function 1",
-        "func": "// Dados de exemplo (em um projeto real, viria de um DB)\nconst users = {\n    \"708CE255\": { \"usuario\": \"Savio\", \"nivel_acesso\": 1 },\n    \"DEADBEEF\": { \"usuario\": \"Maria Silva\", \"nivel_acesso\": 1 },\n    \"A1B2C3D4\": { \"usuario\": \"Admin\", \"nivel_acesso\": 1 }\n};\n\n// Define o payload da resposta\nmsg.payload = users;\n\nreturn msg;",
+        "name": "Temporário JSON Usuarios",
+        "func": "\n// Dados de exemplo (em um projeto real, viria de um DB)\nconst users = {\n    \"708CE255\": { \"usuario\": \"Savio\", \"nivel_acesso\": 1 },\n    \"DEADBEEF\": { \"usuario\": \"Maria Silva\", \"nivel_acesso\": 1 },\n    \"A1B2C3D4\": { \"usuario\": \"Admin\", \"nivel_acesso\": 1 }\n};\n\nconst json = {\n    last_updated: (new Date()).getTime(),\n    users:users\n}\n\n// Define o payload da resposta\nmsg.payload = json;\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 440,
+        "x": 620,
+        "y": 300,
+        "wires": [
+            [
+                "0ac3759b9bf8f8f2"
+            ]
+        ]
+    },
+    {
+        "id": "72b4ad0d4dc52850",
+        "type": "catch",
+        "z": "1ad659de47d5c16b",
+        "name": "Catch problemas arquivo",
+        "scope": [
+            "0ac3759b9bf8f8f2",
+            "1b409bb01c7e944d"
+        ],
+        "uncaught": false,
+        "x": 150,
+        "y": 780,
+        "wires": [
+            [
+                "1e610b618bea0cec"
+            ]
+        ]
+    },
+    {
+        "id": "1e610b618bea0cec",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "Catch armazenamento",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 420,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "1298bc1149fafeb5",
+        "type": "complete",
+        "z": "1ad659de47d5c16b",
+        "name": "Debug - Atualização dos usuários",
+        "scope": [
+            "0ac3759b9bf8f8f2"
+        ],
+        "uncaught": false,
+        "x": 310,
+        "y": 420,
+        "wires": [
+            [
+                "1b409bb01c7e944d"
+            ]
+        ]
+    },
+    {
+        "id": "1b409bb01c7e944d",
+        "type": "file in",
+        "z": "1ad659de47d5c16b",
+        "name": "Ler arquivo de usuários",
+        "filename": "C:/usuarios/savio_zoboli/documentos/usuarios.json",
+        "filenameType": "str",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "allProps": false,
+        "x": 610,
+        "y": 420,
+        "wires": [
+            [
+                "3e7b1bd4dea5f78a"
+            ]
+        ]
+    },
+    {
+        "id": "f4642ae6adf1dbd4",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "Debug - Conteúdo do arquivo de usuários",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1140,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "3e7b1bd4dea5f78a",
+        "type": "json",
+        "z": "1ad659de47d5c16b",
+        "name": "Parse JSON",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 850,
+        "y": 420,
+        "wires": [
+            [
+                "f4642ae6adf1dbd4"
+            ]
+        ]
+    },
+    {
+        "id": "2f69f3b442eb814e",
+        "type": "file in",
+        "z": "1ad659de47d5c16b",
+        "name": "Ler arquivo de usuários",
+        "filename": "C:/usuarios/savio_zoboli/documentos/usuarios.json",
+        "filenameType": "str",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "allProps": false,
+        "x": 470,
+        "y": 180,
+        "wires": [
+            [
+                "b82f91e64b78e66a"
+            ]
+        ]
+    },
+    {
+        "id": "b82f91e64b78e66a",
+        "type": "json",
+        "z": "1ad659de47d5c16b",
+        "name": "Parse JSON",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 710,
         "y": 180,
         "wires": [
             [
                 "3ecce33d7cec049c"
             ]
         ]
+    },
+    {
+        "id": "afdedc76285a81e8",
+        "type": "trigger",
+        "z": "1ad659de47d5c16b",
+        "name": "Trigger de atualização",
+        "op1": "1",
+        "op2": "0",
+        "op1type": "str",
+        "op2type": "str",
+        "duration": "-15",
+        "extend": false,
+        "overrideDelay": false,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 360,
+        "y": 300,
+        "wires": [
+            [
+                "af3f6edf6e9b13f9",
+                "ec35f0d7040b2764"
+            ]
+        ]
+    },
+    {
+        "id": "01a63fc377286dc8",
+        "type": "inject",
+        "z": "1ad659de47d5c16b",
+        "name": "Aciona trigger",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 300,
+        "wires": [
+            [
+                "afdedc76285a81e8"
+            ]
+        ]
+    },
+    {
+        "id": "ec35f0d7040b2764",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "Debug - Trigger acionada",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "Atualizando",
+        "targetType": "jsonata",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 610,
+        "y": 340,
+        "wires": []
     }
 ]

@@ -74,8 +74,26 @@ void syncListaUsuarios() {
   Serial.println(" para atualizacao da lista de usuarios");
 }
 
-void sendUsuarioLogado(){
+void sendOperacaoUsuario(Usuario* usuario,String operacao){
+  if (usuario == nullptr) {
+    return;
+  }
+  StaticJsonDocument<128> doc;
+  JsonObject usuarioObj = doc.createNestedObject("usuario");
+  char uidHex[TAG_LENGTH * 2 + 1]; // Buffer para a string (ex: 4 bytes -> 8 chars + nulo)
+  byteArrayToHexString(usuario->uid, TAG_LENGTH, uidHex, sizeof(uidHex));
+
+  usuarioObj["uid"] = uidHex;
+  usuarioObj["nome"] = usuario->nome;
+  usuarioObj["operacao"] = operacao;
+
+  char jsonBuffer[128];
+  serializeJson(doc, jsonBuffer);
   
+  client.publish(mqtt_topic_log_usuarioLogado, jsonBuffer); // Substitua pelo seu tópico real se necessário
+
+  Serial.print("Enviado status do usuario: ");
+  Serial.println(jsonBuffer);
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -152,13 +170,3 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-bool hexStringToByteArray(const char* hexStr, byte* byteArray, int arraySize) {
-  int len = strlen(hexStr);
-  if (len != arraySize * 2) return false;
-
-  for (int i = 0; i < arraySize; i++) {
-    char hexPair[3] = { hexStr[i * 2], hexStr[i * 2 + 1], '\0' };
-    byteArray[i] = (byte)strtol(hexPair, NULL, 16);
-  }
-  return true;
-}

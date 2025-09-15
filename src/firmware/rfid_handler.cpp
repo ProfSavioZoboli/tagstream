@@ -6,6 +6,8 @@
 #include "feedback_handler.h"
 #include "melodias.h"
 #include <optional>
+#include "mqtt_handler.h" //Permite enviar solicitações MQTT
+#include "utils.h"
 
 // Variáveis globais do .ino que este arquivo precisa conhecer
 extern MFRC522 rfid;
@@ -29,11 +31,12 @@ void readRFID() {
     if(sistemaEstadoAtual == OCIOSO && !usuarioLogado.has_value()){
       //Irá logar para iniciar uma leitura
       iniciaEmprestimo(usuario);
-    }else if (usuarioLogado == usuario){
+    }else if (memcmp(usuarioLogado->uid,usuario->uid,4)==0){
       //Irá deslogar
       finalizaEmprestimo(usuario);
     } else{
-      showMensagem("Já há um usuário logado, impossível continuar");
+      //Se for autorizado mas tiver outro usuário logado no momento, terá que esperar o que está logado deslogar.
+      showTempMensagem("Erro: duplo login",1000);
     }
 
     rfid.PICC_HaltA();
@@ -44,9 +47,9 @@ void readRFID() {
 void rejectUsuario(){
     sistemaEstadoAtual = SistemaEstado::OCIOSO;
     usuarioEstadoAtual = UsuarioEstado::NAUTORIZADO;
+    tocarSomDeFalha();
     showMensagem("NAO AUTORIZADO");
     configLedsEstado();
-    tocarSomDeFalha();
     delay(2000);
     usuarioEstadoAtual = UsuarioEstado::NONE;
 }
@@ -54,23 +57,27 @@ void rejectUsuario(){
 void iniciaEmprestimo(Usuario* usuario) {
     sistemaEstadoAtual = SistemaEstado::OCUPADO;
     usuarioEstadoAtual = UsuarioEstado::AUTORIZADO;
+    tocarMarioMoeda();
     String mensagem = "Bem vindo, ";
     mensagem += usuario->nome;
-    showMensagem(mensagem);
+    showTempMensagem(mensagem,500);
     usuarioLogado = *usuario;
+    sendOperacaoUsuario(usuario,"login");
     configLedsEstado();
-    tocarMarioMoeda();
+    
 }
 
 void finalizaEmprestimo(Usuario* usuario){
   sistemaEstadoAtual = SistemaEstado::OCIOSO;
     usuarioEstadoAtual = UsuarioEstado::NONE;
+    tocarMarioMoeda();
     String mensagem = "Obrigado, ";
     mensagem += usuario->nome;
-    showMensagem(mensagem);
-    usuarioLogado = nullopt;
+    showTempMensagem(mensagem,500);
+    usuarioLogado = std::nullopt;
+    sendOperacaoUsuario(usuario,"logoff");
     configLedsEstado();
-    tocarMarioMoeda();
+    
 }
 
 

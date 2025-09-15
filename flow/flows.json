@@ -505,7 +505,135 @@
         "wires": []
     },
     {
-        "id": "02fe437ed3fa8c67",
+        "id": "163e5431cb0208b5",
+        "type": "mqtt in",
+        "z": "1ad659de47d5c16b",
+        "name": "Logando o usuário que realizou login",
+        "topic": "/indaial/log/usuarioLogado",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "39c1af03843a6b79",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 220,
+        "y": 520,
+        "wires": [
+            [
+                "c13f2504da43873b",
+                "161cd6ddbd88f951"
+            ]
+        ]
+    },
+    {
+        "id": "9fffacad160468cb",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 620,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "3c3490761347f076",
+        "type": "file",
+        "z": "1ad659de47d5c16b",
+        "name": "Realiza log de quem fez alguma operação",
+        "filename": "log_users.txt",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "false",
+        "encoding": "utf8",
+        "x": 840,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c13f2504da43873b",
+        "type": "debug",
+        "z": "1ad659de47d5c16b",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 480,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "baa4e3cf5807e190",
+        "type": "file in",
+        "z": "1ad659de47d5c16b",
+        "name": "",
+        "filename": "log_users.txt",
+        "filenameType": "str",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "allProps": false,
+        "x": 430,
+        "y": 660,
+        "wires": [
+            [
+                "9fffacad160468cb"
+            ]
+        ]
+    },
+    {
+        "id": "2ae7c77b9ab41c02",
+        "type": "complete",
+        "z": "1ad659de47d5c16b",
+        "name": "Debug - Atualização dos usuários",
+        "scope": [
+            "3c3490761347f076"
+        ],
+        "uncaught": false,
+        "x": 170,
+        "y": 660,
+        "wires": [
+            [
+                "baa4e3cf5807e190"
+            ]
+        ]
+    },
+    {
+        "id": "161cd6ddbd88f951",
+        "type": "function",
+        "z": "1ad659de47d5c16b",
+        "name": "function 1",
+        "func": "let usr = msg.payload.usuario;\n\nlet csv = `${usr.uid},${usr.nome},${usr.operacao};`;\n\nmsg.payload = csv;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 540,
+        "y": 520,
+        "wires": [
+            [
+                "3c3490761347f076"
+            ]
+        ]
+    },
+    {
+        "id": "0f9ddc2f489c328a",
         "type": "global-config",
         "env": [],
         "modules": {

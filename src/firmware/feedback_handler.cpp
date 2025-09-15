@@ -9,6 +9,8 @@
 extern Adafruit_SSD1306 display;
 extern enum SistemaEstado { OCIOSO, OCUPADO} sistemaEstadoAtual;
 
+String msg_atual;
+
 void configLedsEstado() {
   digitalWrite(LED_OCIOSO, LOW);
   digitalWrite(LED_OCUPADO, LOW);
@@ -27,7 +29,7 @@ void sinalSonoro(int rounds, int tom) {
   }
 }
 
-void showMensagem(String mensagem) {
+void showMensagem(String mensagem,bool update) {
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
@@ -37,4 +39,13 @@ void showMensagem(String mensagem) {
   display.setCursor((SCREEN_WIDTH - w) / 2, (SCREEN_HEIGHT - h) / 2);
   display.println(mensagem);
   display.display();
+  if(update){
+    msg_atual = mensagem;
+  }
+}
+
+void showTempMensagem(String mensagem, int ms){
+  showMensagem(mensagem,false);
+  delay(ms);
+  showMensagem(msg_atual,false);
 }

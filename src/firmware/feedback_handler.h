@@ -7,6 +7,7 @@
 
 void configLedsEstado();
 void sinalSonoro(int rounds, int tom);
-void showMensagem(String mensagem);
+void showMensagem(String mensagem,bool update = true);
+void showTempMensagem(String mensagem, int ms);
 
 #endif

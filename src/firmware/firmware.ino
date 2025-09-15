@@ -59,7 +59,9 @@ void setup() {
   
   showMensagem("Iniciando...");
   delay(1000);
-  tocarCantinaBand();
+  //tocarCantinaBand();
+  //tocarMusicaZelda();
+  tocarStarWars();
 
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -96,6 +98,7 @@ void loop() {
       //delay(3000);
       //sistemaEstadoAtual = OCIOSO;
       //usuarioEstadoAtual = NONE;
+      readRFID();
       configLedsEstado();
       break;
   }

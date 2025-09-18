@@ -21,49 +21,63 @@ extern enum DadosEstado { DESATUALIZADO,
                           SINCRONIZADO,
                           SINCRONIZANDO } dadosEstadoAtual;
 
-void setup_wifi() {
+const int max_tentativas = 3;
+const int ultima_tentativa = 0;
+
+bool setup_wifi() {
   delay(10);
   Serial.println();
   Serial.print("Conectando a ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  float counter = 1.0;  // Mude para float
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500 * counter);
-    counter += 0.1;
+  int tentativa = 0;
+  while (WiFi.status() != WL_CONNECTED && tentativa < max_tentativas) {
+    delay(500);
+    Serial.print('.');
+    tentativa++;
   }
-
+  if(WiFi.status() != WL_CONNECTED){
+    return false;
+  }
   Serial.println("");
   Serial.println("WiFi conectado");
   Serial.print("Endereco IP: ");
   Serial.println(WiFi.localIP());
+  return true;
 }
 
-void reconnect_mqtt() {
-  while (!client.connected()) {
+/*
+  * Códigos de erro do PubSubClient:
+  * -4 : Falha de conexão (ex: timeout)
+  * -2 : ID de cliente inválido
+  * 1 : Versão de protocolo incorreta
+  * 2 : ID de cliente rejeitado
+  * 3 : Servidor indisponível
+  * 4 : Usuário ou senha incorretos
+  * 5 : Não autorizado
+*/
+
+bool reconnect_mqtt() {
+  int tentativa = 0;
+  while (!client.connected() & tentativa < max_tentativas) {
     Serial.print("Tentando conectar ao MQTT...");
     // Conecta usando um ID de cliente, usuário e senha
     if (client.connect("ESP32_RFID_Client_01", mqtt_user, mqtt_pass)) {
       Serial.println("conectado!");
       // Reinscreve no tópico após a reconexão
       client.subscribe(mqtt_topic_res_usrs);
+
+      return true;
     } else {
       Serial.print("falhou, rc=");
       Serial.print(client.state());
-      /*
-             * Códigos de erro do PubSubClient:
-             * -4 : Falha de conexão (ex: timeout)
-             * -2 : ID de cliente inválido
-             * 1 : Versão de protocolo incorreta
-             * 2 : ID de cliente rejeitado
-             * 3 : Servidor indisponível
-             * 4 : Usuário ou senha incorretos
-             * 5 : Não autorizado
-            */
+      
       Serial.println(" tentando novamente em 5 segundos");
       delay(5000);
     }
   }
+  Serial.println("Tentativas excedidas, tentando novamente em alguns minutos.");
+  return false;
 }
 
 void syncListaUsuarios() {

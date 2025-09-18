@@ -49,7 +49,7 @@ void rejectUsuario(){
     usuarioEstadoAtual = UsuarioEstado::NAUTORIZADO;
     tocarSomDeFalha();
     showMensagem("NAO AUTORIZADO");
-    configLedsEstado();
+    //configLedsEstado();
     delay(2000);
     usuarioEstadoAtual = UsuarioEstado::NONE;
 }
@@ -63,7 +63,7 @@ void iniciaEmprestimo(Usuario* usuario) {
     showTempMensagem(mensagem,500);
     usuarioLogado = *usuario;
     sendOperacaoUsuario(usuario,"login");
-    configLedsEstado();
+    //configLedsEstado();
     
 }
 
@@ -76,7 +76,7 @@ void finalizaEmprestimo(Usuario* usuario){
     showTempMensagem(mensagem,500);
     usuarioLogado = std::nullopt;
     sendOperacaoUsuario(usuario,"logoff");
-    configLedsEstado();
+    //configLedsEstado();
     
 }
 

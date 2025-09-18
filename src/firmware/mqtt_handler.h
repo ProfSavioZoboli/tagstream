@@ -6,8 +6,8 @@
 #include <Arduino.h>
 #include "rfid_handler.h"
 
-void setup_wifi();
-void reconnect_mqtt();
+bool setup_wifi();
+bool reconnect_mqtt();
 void syncListaUsuarios();
 void sendOperacaoUsuario(Usuario* usuario,String operacao);
 void callback(char* topic, byte* payload, unsigned int length);

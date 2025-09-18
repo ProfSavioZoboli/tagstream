@@ -4,9 +4,7 @@
 #define CONFIG_H
 
 // --- DEFINIÇÕES DE PINOS ---
-#define BUZZER 26
-#define LED_OCIOSO 33
-#define LED_OCUPADO 32
+#define BUZZER 13
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1

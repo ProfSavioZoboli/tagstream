@@ -8,6 +8,7 @@
 #include <optional>
 #include "mqtt_handler.h" //Permite enviar solicitações MQTT
 #include "utils.h"
+#include "locker_handler.h"
 
 // Variáveis globais do .ino que este arquivo precisa conhecer
 extern MFRC522 rfid;
@@ -63,6 +64,7 @@ void iniciaEmprestimo(Usuario* usuario) {
     showTempMensagem(mensagem,500);
     usuarioLogado = *usuario;
     sendOperacaoUsuario(usuario,"login");
+    liberaFechadura();
     //configLedsEstado();
     
 }
@@ -76,6 +78,7 @@ void finalizaEmprestimo(Usuario* usuario){
     showTempMensagem(mensagem,500);
     usuarioLogado = std::nullopt;
     sendOperacaoUsuario(usuario,"logoff");
+    travaFechadura();
     //configLedsEstado();
     
 }

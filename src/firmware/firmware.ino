@@ -18,6 +18,7 @@
 #include "mqtt_handler.h"
 #include "utils.h"
 #include "keyboard_handler.h"
+#include "locker_handler.h"
 
 // --- BIBLIOTECAS DE HARDWARE E REDE (Para instanciar os objetos) ---
 #include <Adafruit_SSD1306.h>
@@ -56,6 +57,7 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(BUZZER, OUTPUT);
+  pinMode(RELE,OUTPUT);
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, I2C_ADDRESS)) {
     Serial.println(F("Falha ao iniciar display OLED"));
@@ -63,11 +65,12 @@ void setup() {
   SPI.begin();
   rfid.PCD_Init();
   setupTeclado();
+  travaFechadura();
 
   showMensagem("Iniciando...");
   delay(1000);
   //tocarCantinaBand();
-  //tocarMusicaZelda();
+  tocarMusicaZelda();
   //tocarStarWars();
 
   if (setup_wifi()) {

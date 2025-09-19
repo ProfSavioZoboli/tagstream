@@ -40,7 +40,7 @@ void setupTeclado() {
 
 char getTeclaPressionada() {
   // Itera por cada linha
-  for (int r = 0; r < ROWS; r++) {
+  /*for (int r = 0; r < ROWS; r++) {
     // Ativa a linha atual
     digitalWrite(rowPins[r], LOW);
 
@@ -68,7 +68,7 @@ char getTeclaPressionada() {
     // Desativa a linha atual
     digitalWrite(rowPins[r], HIGH);
     Serial.println("--------------------"); // Separador para a próxima varredura
-  }
+  }*/
 
   return '\0'; 
 }

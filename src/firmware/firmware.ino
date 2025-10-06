@@ -77,6 +77,8 @@ void setup() {
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
     ultima_verif_rede = getTimestampAtual();
+  }else{
+    showTempMensagem("WiFi OFF",5000);
   }
 }
 

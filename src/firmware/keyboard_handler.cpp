@@ -40,23 +40,13 @@ void setupTeclado() {
 
 char getTeclaPressionada() {
   // Itera por cada linha
-  /*for (int r = 0; r < ROWS; r++) {
+  for (int r = 0; r < ROWS; r++) {
     // Ativa a linha atual
     digitalWrite(rowPins[r], LOW);
-
-    // DEBUG: Informa qual linha está sendo varrida
-    Serial.print("Varrendo Linha "); Serial.print(r);
-    Serial.print(" (Pino "); Serial.print(rowPins[r]); Serial.println(")");
 
     // Itera por cada coluna
     for (int c = 0; c < COLS; c++) {
       int estadoColuna = digitalRead(colPins[c]);
-      
-      // DEBUG: Mostra o estado de cada coluna
-      Serial.print("  - Lendo Coluna "); Serial.print(c);
-      Serial.print(" (Pino "); Serial.print(colPins[c]);
-      Serial.print("): Estado = "); Serial.println(estadoColuna);
-
       if (estadoColuna == LOW) {
         Serial.println("!!! TECLA DETECTADA !!!"); // DEBUG
         delay(50); 
@@ -67,8 +57,8 @@ char getTeclaPressionada() {
 
     // Desativa a linha atual
     digitalWrite(rowPins[r], HIGH);
-    Serial.println("--------------------"); // Separador para a próxima varredura
-  }*/
+
+  }
 
   return '\0'; 
 }

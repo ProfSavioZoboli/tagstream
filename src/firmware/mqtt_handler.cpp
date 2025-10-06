@@ -22,7 +22,7 @@ extern enum DadosEstado { DESATUALIZADO,
                           SINCRONIZANDO } dadosEstadoAtual;
 
 const int max_tentativas = 3;
-const int ultima_tentativa = 0;
+long long ultima_tentativa = 0;
 
 bool setup_wifi() {
   delay(10);
@@ -59,6 +59,10 @@ bool setup_wifi() {
 
 bool reconnect_mqtt() {
   int tentativa = 0;
+  long long timestamp = getTimestampAtual();
+  if(ultima_tentativa != 0 && (timestamp - ultima_tentativa)/1000*60 < 1){
+    return false;
+  }
   while (!client.connected() & tentativa < max_tentativas) {
     Serial.print("Tentando conectar ao MQTT...");
     // Conecta usando um ID de cliente, usuário e senha
@@ -73,10 +77,12 @@ bool reconnect_mqtt() {
       Serial.print(client.state());
       
       Serial.println(" tentando novamente em 5 segundos");
+      tentativa++;
       delay(5000);
     }
   }
   Serial.println("Tentativas excedidas, tentando novamente em alguns minutos.");
+  ultima_tentativa = getTimestampAtual();
   return false;
 }
 

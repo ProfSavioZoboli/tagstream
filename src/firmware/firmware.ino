@@ -87,7 +87,7 @@ void loop() {
 
   verif_network();
 
-   char tecla = getTeclaPressionada();
+  char tecla = getTeclaPressionada();
 
   // Verifica se uma tecla foi realmente pressionada (se não for o caractere nulo)
   if (tecla != '\0') {

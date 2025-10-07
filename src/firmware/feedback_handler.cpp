@@ -11,16 +11,6 @@ extern enum SistemaEstado { OCIOSO, OCUPADO} sistemaEstadoAtual;
 
 String msg_atual;
 
-/*void configLedsEstado() {
-  digitalWrite(LED_OCIOSO, LOW);
-  digitalWrite(LED_OCUPADO, LOW);
-  if (sistemaEstadoAtual == OCIOSO) {
-    digitalWrite(LED_OCIOSO, HIGH);
-  }
-  if (sistemaEstadoAtual == OCUPADO) {
-    digitalWrite(LED_OCUPADO, HIGH);
-  }
-}*/
 
 void sinalSonoro(int rounds, int tom) {
   for (int i = 0; i < rounds; i++) {

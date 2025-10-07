@@ -1,10 +1,6 @@
 #include "keyboard_handler.h"
 #include <Arduino.h>
 
-
-
-
-
 // --- Configuração do Hardware ---
 
 const byte ROWS = 4; // Quatro linhas
@@ -13,9 +9,9 @@ const byte COLS = 4; // Quatro colunas
 // Mapa de caracteres correspondente à matriz do teclado
 char keys[ROWS][COLS] = {
   {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
+  {'4','5','6','E'},
+  {'7','8','9','D'},
+  {'*','0','#','M'}
 };
 
 // Pinos do Arduino conectados às linhas e colunas

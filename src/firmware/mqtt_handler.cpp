@@ -21,6 +21,8 @@ extern enum DadosEstado { DESATUALIZADO,
                           SINCRONIZADO,
                           SINCRONIZANDO } dadosEstadoAtual;
 
+
+
 const int max_tentativas = 3;
 long long ultima_tentativa = 0;
 

@@ -17,5 +17,6 @@ const byte RST_PIN = 2;
 const int MAX_TAGS = 20;
 const int TAG_LENGTH = 4;
 const int tempoDeExibicao = 3000;
+const int MAX_EQUIPAMENTOS = 35;
 
 #endif

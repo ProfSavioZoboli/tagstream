@@ -9,6 +9,7 @@
 #include "secrets.h"
 #include "rfid_handler.h"  // Para ter acesso à struct Usuario
 #include "utils.h"
+#include "emprestimos.h"
 
 // Variáveis globais do .ino que este arquivo precisa conhecer
 extern PubSubClient client;
@@ -38,7 +39,7 @@ bool setup_wifi() {
     Serial.print('.');
     tentativa++;
   }
-  if(WiFi.status() != WL_CONNECTED){
+  if (WiFi.status() != WL_CONNECTED) {
     return false;
   }
   Serial.println("");
@@ -62,7 +63,7 @@ bool setup_wifi() {
 bool reconnect_mqtt() {
   int tentativa = 0;
   long long timestamp = getTimestampAtual();
-  if(ultima_tentativa != 0 && (timestamp - ultima_tentativa)/1000*60 < 1){
+  if (ultima_tentativa != 0 && (timestamp - ultima_tentativa) / 1000 * 60 < 1) {
     return false;
   }
   while (!client.connected() & tentativa < max_tentativas) {
@@ -72,12 +73,12 @@ bool reconnect_mqtt() {
       Serial.println("conectado!");
       // Reinscreve no tópico após a reconexão
       client.subscribe(mqtt_topic_res_usrs);
-
+      client.subscribe(mqtt_topic_res_eqps);
       return true;
     } else {
       Serial.print("falhou, rc=");
       Serial.print(client.state());
-      
+
       Serial.println(" tentando novamente em 5 segundos");
       tentativa++;
       delay(5000);
@@ -96,13 +97,13 @@ void syncListaUsuarios() {
   Serial.println(" para atualizacao da lista de usuarios");
 }
 
-void sendOperacaoUsuario(Usuario* usuario,String operacao){
+void sendOperacaoUsuario(Usuario* usuario, String operacao) {
   if (usuario == nullptr) {
     return;
   }
   StaticJsonDocument<128> doc;
   JsonObject usuarioObj = doc.createNestedObject("usuario");
-  char uidHex[TAG_LENGTH * 2 + 1]; // Buffer para a string (ex: 4 bytes -> 8 chars + nulo)
+  char uidHex[TAG_LENGTH * 2 + 1];  // Buffer para a string (ex: 4 bytes -> 8 chars + nulo)
   byteArrayToHexString(usuario->uid, TAG_LENGTH, uidHex, sizeof(uidHex));
 
   usuarioObj["uid"] = uidHex;
@@ -111,11 +112,17 @@ void sendOperacaoUsuario(Usuario* usuario,String operacao){
 
   char jsonBuffer[128];
   serializeJson(doc, jsonBuffer);
-  
-  client.publish(mqtt_topic_log_usuarioLogado, jsonBuffer); // Substitua pelo seu tópico real se necessário
+
+  client.publish(mqtt_topic_log_usuarioLogado, jsonBuffer);  // Substitua pelo seu tópico real se necessário
 
   Serial.print("Enviado status do usuario: ");
   Serial.println(jsonBuffer);
+}
+
+void syncListaEquipamentos() {
+  dadosEstadoAtual = DadosEstado::SINCRONIZANDO;
+  client.publish(mqtt_topic_req_eqps, "");
+  Serial.println("MQTT: Enviado requisicao para atualizacao da lista de equipamentos.");
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -189,6 +196,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
     lastSync = getTimestampAtual();
     Serial.print("Lista de usuários atualizada com sucesso. Novo timestamp local: ");
     Serial.println(timestampDaListaLocal);
+  } else if (strcmp(topic, mqtt_topic_res_eqps) == 0) {
+    Serial.println("Lista de equipamentos recebida. Processando...");
+
+    // Aumente o tamanho se a lista de equipamentos for muito grande
+    StaticJsonDocument<2048> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (error) {
+      Serial.print("Falha ao parsear JSON da lista de equipamentos: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    // Converte o payload inteiro para um JsonArray
+    JsonArray equipamentosArray = doc.as<JsonArray>();
+
+    // Chama a função para processar o array
+    atualizarInventario(equipamentosArray);
   }
 }
-

@@ -38,6 +38,12 @@ int numeroDeTagsAutorizadas = 0;
 unsigned long long timestampDaListaLocal = 0;
 unsigned long long lastSync = 0;
 
+// --- LEITOR DO TECLADO ---
+
+char inputBuffer[10]; // Buffer para armazenar a entrada do teclado (ex: "12A34")
+int inputIndex = 0;   // Posição atual no buffer
+
+
 enum SistemaEstado
 {
   OCIOSO,
@@ -59,11 +65,11 @@ enum DadosEstado
 
 enum OperacaoSistema
 {
-  NONE,
+  NENHUMA,
   EMPRESTIMO,
   DEVOLUCAO,
   MANUTENCAO
-} operacaoAtual = NONE;
+} operacaoAtual = NENHUMA;
 unsigned long tempoEstadoMudou = 0;
 
 // --- VERIFICAÇÃO DA REDE ---
@@ -95,6 +101,7 @@ void setup()
   {
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
+    client.setBufferSize(1024);
     ultima_verif_rede = getTimestampAtual();
   }
   else
@@ -103,8 +110,7 @@ void setup()
   }
 }
 
-void loop()
-{
+void loop(){
 
   verif_network();
 
@@ -123,97 +129,109 @@ void loop()
   delay(100);
 }
 
-void verif_network()
-{
-  if (WiFi.status() != WL_CONNECTED)
-  { // Se não estiver conectado ao WiFi
+void verif_network(){
+  if (WiFi.status() != WL_CONNECTED)  { // Se não estiver conectado ao WiFi
 
-    if (ultima_verif_rede / (1000 * 60) < 1)
-    {
+    if ((ultima_verif_rede / (1000 * 60)) < 1)    {
       return;
     } // tenta novamente em 1 minuto
 
-    if (setup_wifi())
-    { // Tenta conectar (tentativas)
+    if (setup_wifi()){ // Tenta conectar (tentativas)
       client.setServer(mqtt_server, 1883);
       client.setCallback(callback);
     }
+    ultima_verif_rede = getTimestampAtual();
   }
-  else
-  { // Se estiver conectado
-    if (!client.connected())
-    { // Verifica se o MQTT está conectado
+  else{ // Se estiver conectado
+    if (!client.connected()){ // Verifica se o MQTT está conectado
       reconnect_mqtt();
     }
 
     client.loop(); // Verifica tópicos
 
-    if (client.connected())
-    {
+    if (client.connected()){
       // Sua lógica de sincronização de tempo
       long long milis = getTimestampAtual();
       long minutosPassadosDaUltimaSync = (milis - lastSync) / (1000 * 60);
-      if (minutosPassadosDaUltimaSync > 4 && dadosEstadoAtual != SINCRONIZANDO)
-      {
+      if (minutosPassadosDaUltimaSync > 4 && dadosEstadoAtual != SINCRONIZANDO){
         dadosEstadoAtual = DESATUALIZADO;
       }
-      if (dadosEstadoAtual == DESATUALIZADO)
-      {
+      if (dadosEstadoAtual == DESATUALIZADO){
         syncListaUsuarios();
+        syncListaEquipamentos();
       }
     }
   }
 }
 
-void handleOcupado()
-{
-  char *valor = '';
-  showMensagem(valor);
-  while (sistemaEstadoAtual == OCUPADO)
-  {
-    char tecla = getTeclaPressionada();
-    if (tecla != '\0')
-    {
+void handleOcupado() {
+  // A mensagem inicial é definida pela operação
+  switch (operacaoAtual) {
+    case EMPRESTIMO:
+      showMensagem("Emprestimo:");
+      break;
+    case DEVOLUCAO:
+      showMensagem("Devolucao:");
+      break;
+    case MANUTENCAO:
+      showMensagem("Manutencao:");
+      break;
+    default:
+      showMensagem("E: Emp\nD: Dev\nM: Manut");
+      break;
+  }
 
-      if (operacaoAtual == NONE)
-      {
-        switch (tecla)
-        {
-        case 'E':
-          // Empréstimo
-          operacaoAtual = EMPRESTIMO;
-          break;
-        case 'D':
-          // Devolução
-          operacaoAtual = DEVOLUCAO;
-          break;
-        case 'M':
-          // Manutenção
-          operacaoAtual = MANUTENCAO;
-          break;
+  // Loop principal enquanto o sistema está ocupado
+  while (sistemaEstadoAtual == OCUPADO) {
+    char tecla = getTeclaPressionada(); // Tenta ler uma tecla
+
+    if (tecla != '\0') { // Se uma tecla foi pressionada
+      if (operacaoAtual == NONE) {
+        // Define a operação se nenhuma foi escolhida ainda
+        switch (tecla) {
+          case 'E': operacaoAtual = EMPRESTIMO; break;
+          case 'D': operacaoAtual = DEVOLUCAO; break;
+          case 'M': operacaoAtual = MANUTENCAO; break;
         }
-        char *valor = '';
-      }
-      else if (tecla != 'E' && tecla != 'D' && tecla != 'M')
-      {
-        switch (tecla)
-        {
-        case '*':
-          // Cancelar
-          char *valor = '';
-          break;
-        case '#':
-          // Confirmar
-          char *valor = '';
-          break;
-        default:
-          // Outras teclas
-          valor = valor + tecla;
-          break;
+        // Limpa o buffer para a próxima entrada
+        memset(inputBuffer, 0, sizeof(inputBuffer));
+        inputIndex = 0;
+      } else {
+        // Se já há uma operação, processa a entrada numérica ou os comandos
+        switch (tecla) {
+          case '*': // Cancelar/Limpar
+            operacaoAtual = NENHUMA;
+            memset(inputBuffer, 0, sizeof(inputBuffer));
+            inputIndex = 0;
+            break;
+          case '#': // Confirmar
+            // Adicione aqui a lógica para processar o que está no inputBuffer
+            // Ex: handleEmprestimo(inputBuffer);
+            showTempMensagem("Processando...", 1000);
+            operacaoAtual = NENHUMA; // Reseta a operação
+            memset(inputBuffer, 0, sizeof(inputBuffer));
+            inputIndex = 0;
+            break;
+          case 'E': case 'D': case 'M':
+            // Ignora teclas de operação se uma já foi selecionada
+            break;
+          default: // Adiciona o dígito ao buffer
+            if (inputIndex < sizeof(inputBuffer) - 1) {
+              inputBuffer[inputIndex++] = tecla;
+              inputBuffer[inputIndex] = '\0'; // Garante o terminador nulo
+            }
+            break;
         }
       }
     }
-    showMensagem(valor);
-    readRFID();
+
+    // Atualiza o display com o buffer atual (apenas se houver uma operação)
+    if (operacaoAtual != NONE) {
+        showMensagem(inputBuffer);
+    }
+
+    readRFID(); // Permite que o usuário faça logoff a qualquer momento
+    client.loop(); // Mantém a conexão MQTT ativa
+    delay(20); // Pequeno delay para evitar sobrecarga da CPU
   }
 }

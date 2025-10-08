@@ -13,5 +13,6 @@ void sendOperacaoUsuario(Usuario* usuario,String operacao);
 void callback(char* topic, byte* payload, unsigned int length);
 bool hexStringToByteArray(const char* hexStr, byte* byteArray, int arraySize);
 void byteArrayToHexString(byte* byteArray, int arraySize, char* outputBuffer, int bufferSize);
+void syncListaEquipamentos();
 
 #endif

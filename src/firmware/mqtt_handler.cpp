@@ -38,9 +38,23 @@ bool setup_wifi() {
     delay(500);
     Serial.print('.');
     tentativa++;
+    Serial.print(WiFi.status());
   }
   if (WiFi.status() != WL_CONNECTED) {
-    return false;
+    
+    Serial.print("Conectando a rede failover ");
+    Serial.println(ssid_failover);
+    WiFi.begin(ssid_failover, password_failover);
+    int tentativa = 0;
+    while (WiFi.status() != WL_CONNECTED && tentativa < max_tentativas) {
+      delay(500);
+      Serial.print('.');
+      tentativa++;
+      Serial.print(WiFi.status());
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      return false;
+    }
   }
   Serial.println("");
   Serial.println("WiFi conectado");

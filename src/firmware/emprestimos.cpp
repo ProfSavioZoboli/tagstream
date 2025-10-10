@@ -91,6 +91,6 @@ void atualizarInventario(JsonArray equipamentosArray) {
     }
   }
 
-  listarEquipamentos();
+  //listarEquipamentos();
 }
 

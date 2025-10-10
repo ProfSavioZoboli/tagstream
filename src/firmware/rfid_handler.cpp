@@ -25,11 +25,18 @@ extern unsigned long tempoEstadoMudou;
 void readRFID() {
   if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
     Usuario* usuario = getUsuarioAutorizado(rfid.uid.uidByte, rfid.uid.size);
-    if(usuario == nullptr){
-      rejectUsuario();
-      return;
+    //if(usuario == nullptr){
+    //  rejectUsuario();
+    //  return;
+    //}
+
+    if(isTravaAberta()){
+      travaFechadura();
+    }else{
+      liberaFechadura();
     }
-    if(sistemaEstadoAtual == OCIOSO && !usuarioLogado.has_value()){
+
+    /*if(sistemaEstadoAtual == OCIOSO && !usuarioLogado.has_value()){
       //Irá logar para iniciar uma leitura
       iniciaEmprestimo(usuario);
     }else if (memcmp(usuarioLogado->uid,usuario->uid,4)==0){
@@ -38,7 +45,7 @@ void readRFID() {
     } else{
       //Se for autorizado mas tiver outro usuário logado no momento, terá que esperar o que está logado deslogar.
       showTempMensagem("Erro: duplo login",1000);
-    }
+    }*/
 
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();

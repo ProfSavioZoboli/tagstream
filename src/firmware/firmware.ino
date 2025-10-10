@@ -82,6 +82,9 @@ void setup()
   pinMode(BUZZER, OUTPUT);
   pinMode(RELE, OUTPUT);
 
+  //Debug do rele
+  setupFechadura();
+
   if (!display.begin(SSD1306_SWITCHCAPVCC, I2C_ADDRESS))
   {
     Serial.println(F("Falha ao iniciar display OLED"));
@@ -89,12 +92,13 @@ void setup()
   SPI.begin();
   rfid.PCD_Init();
   setupTeclado();
+ 
   travaFechadura();
 
   showMensagem("Iniciando...");
   delay(1000);
   // tocarCantinaBand();
-  tocarMusicaZelda();
+  //tocarMusicaZelda();
   // tocarStarWars();
 
   if (setup_wifi())

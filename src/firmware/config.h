@@ -4,7 +4,7 @@
 #define CONFIG_H
 
 // --- DEFINIÇÕES DE PINOS ---
-#define BUZZER 35
+#define BUZZER 13
 #define RELE 4
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64

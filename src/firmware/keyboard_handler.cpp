@@ -16,7 +16,7 @@ char keys[ROWS][COLS] = {
 
 // Pinos do Arduino conectados às linhas e colunas
 byte rowPins[ROWS] = {32, 33, 25, 26}; // Pinos para L4, L3, L2, L1
-byte colPins[COLS] = {27, 14, 12, 13}; // Pinos para C4, C3, C2, C1
+byte colPins[COLS] = {27, 14, 12, 34}; // Pinos para C4, C3, C2, C1
 
 // --- Implementação das Funções ---
 

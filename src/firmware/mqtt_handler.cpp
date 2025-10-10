@@ -41,6 +41,9 @@ bool setup_wifi() {
     Serial.print(WiFi.status());
   }
   if (WiFi.status() != WL_CONNECTED) {
+      return false;
+    }
+  /*if (WiFi.status() != WL_CONNECTED) {
     
     Serial.print("Conectando a rede failover ");
     Serial.println(ssid_failover);
@@ -55,7 +58,7 @@ bool setup_wifi() {
     if (WiFi.status() != WL_CONNECTED) {
       return false;
     }
-  }
+  }*/
   Serial.println("");
   Serial.println("WiFi conectado");
   Serial.print("Endereco IP: ");
@@ -77,8 +80,8 @@ bool setup_wifi() {
 bool reconnect_mqtt() {
   int tentativa = 0;
   long long timestamp = getTimestampAtual();
-  if (ultima_tentativa != 0 && (timestamp - ultima_tentativa) / 1000 * 60 < 1) {
-    return false;
+  if ((getTimestampAtual() - ultima_tentativa) < (1000 * 60))    {
+      return false;
   }
   while (!client.connected() & tentativa < max_tentativas) {
     Serial.print("Tentando conectar ao MQTT...");

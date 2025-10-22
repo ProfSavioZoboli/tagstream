@@ -9,6 +9,8 @@ void atualizarInventario(JsonArray equipamentos);
 
 void listarEquipamentos();
 
+bool handleEmprestimo(char* query);
+
 
 
 

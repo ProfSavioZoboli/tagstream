@@ -16,7 +16,7 @@ char keys[ROWS][COLS] = {
 
 // Pinos do Arduino conectados às linhas e colunas
 byte rowPins[ROWS] = {32, 33, 25, 26}; // Pinos para L4, L3, L2, L1
-byte colPins[COLS] = {27, 14, 12, 34}; // Pinos para C4, C3, C2, C1
+byte colPins[COLS] = {27, 14, 12, 15}; // Pinos para C4, C3, C2, C1
 
 // --- Implementação das Funções ---
 
@@ -45,6 +45,12 @@ char getTeclaPressionada() {
       int estadoColuna = digitalRead(colPins[c]);
       if (estadoColuna == LOW) {
         Serial.println("!!! TECLA DETECTADA !!!"); // DEBUG
+        Serial.print("Linha: ");
+        Serial.print(r);
+        Serial.print(" Coluna: ");
+        Serial.println(c);
+        Serial.print("Tecla: ");
+        Serial.println(keys[r][c]);
         delay(50); 
         digitalWrite(rowPins[r], HIGH);
         return keys[r][c];

@@ -19,6 +19,7 @@
 #include "utils.h"
 #include "keyboard_handler.h"
 #include "locker_handler.h"
+#include "emprestimos.h"
 
 // --- BIBLIOTECAS DE HARDWARE E REDE (Para instanciar os objetos) ---
 #include <Adafruit_SSD1306.h>
@@ -98,8 +99,8 @@ void setup()
   showMensagem("Iniciando...");
   delay(1000);
   // tocarCantinaBand();
-  //tocarMusicaZelda();
-  // tocarStarWars();
+  tocarMusicaZelda();
+  //tocarStarWars();
 
   if (setup_wifi())
   {
@@ -190,7 +191,7 @@ void handleOcupado() {
     char tecla = getTeclaPressionada(); // Tenta ler uma tecla
 
     if (tecla != '\0') { // Se uma tecla foi pressionada
-      if (operacaoAtual == NONE) {
+      if (operacaoAtual == NENHUMA) {
         // Define a operação se nenhuma foi escolhida ainda
         switch (tecla) {
           case 'E': operacaoAtual = EMPRESTIMO; break;
@@ -212,7 +213,14 @@ void handleOcupado() {
             // Adicione aqui a lógica para processar o que está no inputBuffer
             // Ex: handleEmprestimo(inputBuffer);
             showTempMensagem("Processando...", 1000);
-            operacaoAtual = NENHUMA; // Reseta a operação
+            Serial.print("Valor no buffer: ");
+            Serial.println(inputBuffer);
+            if(handleEmprestimo(inputBuffer)){
+              showTempMensagem("Emprestimo realizado",5000);
+            }else{
+              showTempMensagem("Erro ao emprestar",5000);
+            }
+            
             memset(inputBuffer, 0, sizeof(inputBuffer));
             inputIndex = 0;
             break;
@@ -230,12 +238,12 @@ void handleOcupado() {
     }
 
     // Atualiza o display com o buffer atual (apenas se houver uma operação)
-    if (operacaoAtual != NONE) {
+    if (operacaoAtual != NENHUMA) {
         showMensagem(inputBuffer);
     }
 
     readRFID(); // Permite que o usuário faça logoff a qualquer momento
     client.loop(); // Mantém a conexão MQTT ativa
-    delay(20); // Pequeno delay para evitar sobrecarga da CPU
+    delay(100); // Pequeno delay para evitar sobrecarga da CPU
   }
 }

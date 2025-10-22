@@ -24,7 +24,7 @@ extern enum DadosEstado { DESATUALIZADO,
 
 
 
-const int max_tentativas = 3;
+const int max_tentativas = 10;
 long long ultima_tentativa = 0;
 
 bool setup_wifi() {
@@ -38,7 +38,6 @@ bool setup_wifi() {
     delay(500);
     Serial.print('.');
     tentativa++;
-    Serial.print(WiFi.status());
   }
   if (WiFi.status() != WL_CONNECTED) {
       return false;

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <chrono>
+#include "utils.h"
 
 
 long long getTimestampAtual(){
@@ -32,3 +33,15 @@ void byteArrayToHexString(byte* byteArray, int arraySize, char* outputBuffer, in
     }
     outputBuffer[arraySize * 2] = '\0'; // Adiciona o terminador nulo
 }
+
+const char* situacaoParaString(SituacaoEquipamento s) {
+  switch (s) {
+    case EQP_OCUPADO:    return "OCUPADO";
+    case EQP_LIVRE:      return "LIVRE";
+    case EQP_MANUTENCAO: return "MANUTENCAO";
+    default:         return "DESCONHECIDO";
+  }
+}
+
+
+

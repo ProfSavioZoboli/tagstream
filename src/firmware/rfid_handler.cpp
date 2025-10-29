@@ -14,8 +14,8 @@
 extern MFRC522 rfid;
 extern Usuario usuariosAutorizados[MAX_TAGS];
 extern int numeroDeTagsAutorizadas;
-extern enum SistemaEstado { OCIOSO,
-                            OCUPADO } sistemaEstadoAtual;
+extern enum SistemaEstado { SIS_OCIOSO,
+                            SIS_OCUPADO } sistemaEstadoAtual;
 extern enum UsuarioEstado { NONE,
                             AUTORIZADO,
                             NAUTORIZADO } usuarioEstadoAtual;
@@ -30,7 +30,7 @@ void readRFID() {
       return;
     }
 
-    if(sistemaEstadoAtual == OCIOSO && !usuarioLogado.has_value()){
+    if(sistemaEstadoAtual == SIS_OCIOSO && !usuarioLogado.has_value()){
       //Irá logar para iniciar uma leitura
       iniciaEmprestimo(usuario);
     }else if (memcmp(usuarioLogado->uid,usuario->uid,4)==0){
@@ -47,7 +47,7 @@ void readRFID() {
 }
 
 void rejectUsuario(){
-    sistemaEstadoAtual = SistemaEstado::OCIOSO;
+    sistemaEstadoAtual = SistemaEstado::SIS_OCIOSO;
     usuarioEstadoAtual = UsuarioEstado::NAUTORIZADO;
     tocarSomDeFalha();
     showMensagem("NAO AUTORIZADO");
@@ -57,7 +57,7 @@ void rejectUsuario(){
 }
 
 void iniciaEmprestimo(Usuario* usuario) {
-    sistemaEstadoAtual = SistemaEstado::OCUPADO;
+    sistemaEstadoAtual = SistemaEstado::SIS_OCUPADO;
     usuarioEstadoAtual = UsuarioEstado::AUTORIZADO;
     tocarMarioMoeda();
     String mensagem = "Bem vindo, ";
@@ -71,7 +71,7 @@ void iniciaEmprestimo(Usuario* usuario) {
 }
 
 void finalizaEmprestimo(Usuario* usuario){
-  sistemaEstadoAtual = SistemaEstado::OCIOSO;
+  sistemaEstadoAtual = SistemaEstado::SIS_OCIOSO;
     usuarioEstadoAtual = UsuarioEstado::NONE;
     tocarMarioMoeda();
     String mensagem = "Obrigado, ";
@@ -80,6 +80,7 @@ void finalizaEmprestimo(Usuario* usuario){
     usuarioLogado = std::nullopt;
     sendOperacaoUsuario(usuario,"logoff");
     travaFechadura();
+    marcaDirty();
     //configLedsEstado();
     
 }

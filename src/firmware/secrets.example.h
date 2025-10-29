@@ -11,7 +11,11 @@ static const char* password = "SENHA_DA_SUA_REDE_WIFI";
 static const char* mqtt_server = "IP_DO_SEU_BROKER_MQTT";
 static const char* mqtt_user = "SEU_USUARIO_MQTT";
 static const char* mqtt_pass = "SUA_SENHA_MQTT";
-static const char* mqtt_topic_req_usrs = "/seu/topico/request";
-static const char* mqtt_topic_res_usrs = "/seu/topico/response";
+static const char* mqtt_topic_req_usrs = "/indaial/req/usuarios";
+static const char* mqtt_topic_res_usrs = "/indaial/res/usuarios";
+static const char* mqtt_topic_log_usuarioLogado = "/indaial/log/usuarioLogado";
+static const char* mqtt_topic_req_eqps = "/indaial/req/equipamentos";
+static const char* mqtt_topic_res_eqps = "/indaial/res/equipamentos";
+static const char* mqtt_topic_sync_eqps = "/indaial/sync/equipamentos";
 
 #endif

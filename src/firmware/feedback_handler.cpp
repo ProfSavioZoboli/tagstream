@@ -7,7 +7,6 @@
 
 // Declaração 'extern' para usar as variáveis globais do arquivo .ino
 extern Adafruit_SSD1306 display;
-extern enum SistemaEstado { OCIOSO, OCUPADO} sistemaEstadoAtual;
 
 String msg_atual;
 

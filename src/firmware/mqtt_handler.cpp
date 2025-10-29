@@ -17,10 +17,7 @@ extern Usuario usuariosAutorizados[MAX_TAGS];
 extern int numeroDeTagsAutorizadas;
 extern unsigned long long timestampDaListaLocal;
 extern unsigned long long lastSync;
-extern enum DadosEstado { DESATUALIZADO,
-                          SUJO,
-                          SINCRONIZADO,
-                          SINCRONIZANDO } dadosEstadoAtual;
+extern DadosEstado dadosEstadoAtual;
 
 
 
@@ -40,8 +37,8 @@ bool setup_wifi() {
     tentativa++;
   }
   if (WiFi.status() != WL_CONNECTED) {
-      return false;
-    }
+    return false;
+  }
   /*if (WiFi.status() != WL_CONNECTED) {
     
     Serial.print("Conectando a rede failover ");
@@ -79,8 +76,8 @@ bool setup_wifi() {
 bool reconnect_mqtt() {
   int tentativa = 0;
   long long timestamp = getTimestampAtual();
-  if ((getTimestampAtual() - ultima_tentativa) < (1000 * 60))    {
-      return false;
+  if ((getTimestampAtual() - ultima_tentativa) < (1000 * 60)) {
+    return false;
   }
   while (!client.connected() & tentativa < max_tentativas) {
     Serial.print("Tentando conectar ao MQTT...");
@@ -106,7 +103,6 @@ bool reconnect_mqtt() {
 }
 
 void syncListaUsuarios() {
-  dadosEstadoAtual = DadosEstado::SINCRONIZANDO;
   client.publish(mqtt_topic_req_usrs, "");
   Serial.print("MQTT: Enviado requisicao no topico ");
   Serial.print(mqtt_topic_req_usrs);
@@ -136,9 +132,52 @@ void sendOperacaoUsuario(Usuario* usuario, String operacao) {
 }
 
 void syncListaEquipamentos() {
-  dadosEstadoAtual = DadosEstado::SINCRONIZANDO;
-  client.publish(mqtt_topic_req_eqps, "");
-  Serial.println("MQTT: Enviado requisicao para atualizacao da lista de equipamentos.");
+  if (dadosEstadoAtual == DadosEstado::DESATUALIZADO) {
+    client.publish(mqtt_topic_req_eqps, "");
+    Serial.println("MQTT: Enviado requisicao para atualizacao da lista de equipamentos.");
+  } else if (dadosEstadoAtual == DadosEstado::SUJO) {
+
+    // --- Início do Código de Buffer JSON ---
+    // Para N equipamentos, o tamanho é: N * (tamanho de um objeto) + overhead do array.
+    // Ex: {"numero":123,"situacao":"MANUTENCAO"} -> ~45 bytes
+    // Para 10 equipamentos: 10 * 45 + 10 (overhead) = 460
+
+    const int JSON_DOC_SIZE = 2048;
+    StaticJsonDocument<JSON_DOC_SIZE> doc;
+
+    // 2. Crie o JSON como um Array (será a raiz do documento).
+    JsonArray jsonArray = doc.to<JsonArray>();
+
+    // 3. Itere sobre seu array de structs e adicione ao JSON
+    // (Assumindo que seu array se chama 'listaDeEquipamentos' e tem 'NUM_EQUIPAMENTOS' itens)
+    for (int i = 0; i < MAX_EQUIPAMENTOS; i++) {
+      // Cria um objeto JSON aninhado dentro do array
+      JsonObject equipamentoJson = jsonArray.createNestedObject();
+
+      // Preenche o objeto JSON com os dados da struct
+      equipamentoJson["numero"] = getNumeroEquipamento(i);
+      equipamentoJson["situacao"] = getSituacaoEquipamento(i);
+    }
+
+    // 4. Serialize o documento JSON para um buffer de caracteres
+    // ATENÇÃO: O PubSubClient por padrão tem um buffer de 256 bytes (MQTT_MAX_PACKET_SIZE).
+    // Se o seu 'jsonBuffer' for maior que isso, a mensagem será cortada.
+    // Veja a nota "MQTT_MAX_PACKET_SIZE" abaixo.
+    char jsonBuffer[JSON_DOC_SIZE];
+    serializeJson(doc, jsonBuffer);
+
+    // (Opcional) Imprimir o JSON no Serial para debug
+    Serial.print("MQTT: JSON a ser enviado: ");
+    Serial.println(jsonBuffer);
+
+    // 5. Publicar o buffer
+    client.publish(mqtt_topic_sync_eqps, jsonBuffer);
+
+    // --- Fim do Código de Buffer JSON ---
+
+    Serial.println("MQTT: Sincronizando equipamentos emprestados/devolvidos");
+    setEstadoAtual(SINCRONIZANDO);
+  }
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -231,4 +270,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Chama a função para processar o array
     atualizarInventario(equipamentosArray);
   }
+}
+
+void marcaDirty() {
+  dadosEstadoAtual = DadosEstado::SUJO;
+}
+
+DadosEstado getEstadoAtual() {
+  return dadosEstadoAtual;
+}
+
+void setEstadoAtual(DadosEstado estado) {
+  dadosEstadoAtual = estado;
 }

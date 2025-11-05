@@ -14,6 +14,8 @@ void liberaFechadura(){
   Serial.println("Liberou fechadura");
   digitalWrite(RELE,HIGH);
   situacaoFechadura = true;
+  delay(5000);
+  travaFechadura();
 }
 
 void travaFechadura(){

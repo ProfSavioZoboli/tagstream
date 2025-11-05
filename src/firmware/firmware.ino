@@ -212,15 +212,15 @@ void handleOcupado() {
             Serial.println(inputBuffer);
             if (operacaoAtual == OP_EMPRESTIMO) {
               if (handleEmprestimo(inputBuffer)) {
-                showTempMensagem("Emprestimo realizado", 5000);
+                showTempMensagem("Ok", 2000);
               } else {
-                showTempMensagem("Erro", 5000);
+                showTempMensagem("Erro:Já emprestado", 5000);
               }
             } else if (operacaoAtual == OP_DEVOLUCAO) {
               if (handleDevolucao(inputBuffer)) {
-                showTempMensagem("Devolução realizada", 5000);
+                showTempMensagem("Ok", 2000);
               } else {
-                showTempMensagem("Erro", 5000);
+                showTempMensagem("Erro: Já devolvido", 5000);
               }
             } else {
             }

@@ -9,7 +9,6 @@
 struct Usuario {
   byte uid[4]; // Usar um valor fixo é mais seguro
   char nome[32];
-  int nivelAcesso;
 };
 
 // Declaração de funções

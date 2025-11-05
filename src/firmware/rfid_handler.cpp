@@ -65,6 +65,7 @@ void iniciaEmprestimo(Usuario* usuario) {
     showTempMensagem(mensagem,500);
     usuarioLogado = *usuario;
     sendOperacaoUsuario(usuario,"login");
+    showMensagem("Abra a \nporta");
     liberaFechadura();
     //configLedsEstado();
     

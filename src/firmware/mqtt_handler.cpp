@@ -76,7 +76,7 @@ bool setup_wifi() {
 bool reconnect_mqtt() {
   int tentativa = 0;
   long long timestamp = getTimestampAtual();
-  if ((getTimestampAtual() - ultima_tentativa) < (1000 * 60)) {
+  if (ultima_tentativa != 0 && (getTimestampAtual() - ultima_tentativa) < (1000 * 60)) {
     return false;
   }
   while (!client.connected() & tentativa < max_tentativas) {
@@ -87,6 +87,7 @@ bool reconnect_mqtt() {
       // Reinscreve no tópico após a reconexão
       client.subscribe(mqtt_topic_res_usrs);
       client.subscribe(mqtt_topic_res_eqps);
+      client.subscribe(mqtt_topic_ack_eqps);
       return true;
     } else {
       Serial.print("falhou, rc=");
@@ -103,10 +104,22 @@ bool reconnect_mqtt() {
 }
 
 void syncListaUsuarios() {
-  client.publish(mqtt_topic_req_usrs, "");
-  Serial.print("MQTT: Enviado requisicao no topico ");
-  Serial.print(mqtt_topic_req_usrs);
-  Serial.println(" para atualizacao da lista de usuarios");
+  // Esta função agora implementa o "check-sync".
+  // Em vez de pedir a lista inteira, ela envia seu timestamp local.
+  
+  StaticJsonDocument<64> doc;
+  doc["meu_timestamp"] = timestampDaListaLocal;
+  
+  char jsonBuffer[64];
+  serializeJson(doc, jsonBuffer);
+
+  // Publica no NOVO tópico de "verificação"
+  client.publish(mqtt_topic_check_usrs, jsonBuffer); 
+  
+  Serial.print("MQTT: Verificando lista de usuarios no topico ");
+  Serial.print(mqtt_topic_check_usrs);
+  Serial.print(" com timestamp ");
+  Serial.println(timestampDaListaLocal);
 }
 
 void sendOperacaoUsuario(Usuario* usuario, String operacao) {
@@ -184,11 +197,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensagem recebida no tópico: ");
   Serial.println(topic);
 
+  // --- MUDANÇA ---
+  // Lógica de recebimento de usuários totalmente refatorada
   if (strcmp(topic, mqtt_topic_res_usrs) == 0) {
     Serial.println("Mensagem de usuários recebida. Processando...");
 
-    // 1. Parsear o JSON recebido
-    StaticJsonDocument<1024> doc;  // Aumente se a lista for muito grande
+    StaticJsonDocument<1024> doc; 
     DeserializationError error = deserializeJson(doc, payload, length);
 
     if (error) {
@@ -198,59 +212,78 @@ void callback(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
-    // 2. Extrair o timestamp e o objeto aninhado 'users'
-    unsigned long long novoTimestamp = doc["last_updated"];
-    JsonObject users = doc["users"];
+    // --- MUDANÇA (LÓGICA 1: Check-Sync) ---
+    // Verifica se o servidor apenas respondeu que estamos atualizados.
+    if (doc.containsKey("status") && doc["status"] == "ATUALIZADO") {
+        Serial.println("Dados de usuários já estão sincronizados.");
+        dadosEstadoAtual = DadosEstado::SINCRONIZADO;
+        lastSync = getTimestampAtual();
+        return;
+    }
 
-    // 3. Lógica de Sincronização: verificar se os dados são realmente novos
+    // --- MUDANÇA (LÓGICA 2: Novo Formato) ---
+    // Se não for "ATUALIZADO", esperamos o novo formato:
+    // { "novo_timestamp": 1234567, "usuarios": [ {...}, {...} ] }
+    //
+    // **** IMPORTANTE ****
+    // Presumi que seu backend enviará o "novo_timestamp" junto com o array "usuarios".
+    // Se você enviar *apenas* o array, não há como o ESP32 atualizar seu timestamp local.
+    
+    if (!doc.containsKey("novo_timestamp") || !doc.containsKey("usuarios")) {
+        Serial.println("Erro: Payload de usuários inválido (faltando 'novo_timestamp' ou 'usuarios').");
+        dadosEstadoAtual = DadosEstado::DESATUALIZADO;
+        return;
+    }
+
+    unsigned long long novoTimestamp = doc["novo_timestamp"];
+    
+    // Lógica de Sincronização: verificar se os dados são realmente novos
     if (novoTimestamp <= timestampDaListaLocal) {
       Serial.println("Dados recebidos não são novos. Atualização ignorada.");
       dadosEstadoAtual = DadosEstado::SINCRONIZADO;
       lastSync = getTimestampAtual();
-
       return;
     }
 
-    // 4. Verificar se o objeto 'users' realmente existe no JSON
-    if (users.isNull()) {
-      Serial.println("Erro: O JSON recebido não contém o objeto 'users'.");
-      dadosEstadoAtual = DadosEstado::DESATUALIZADO;
-      return;
-    }
-
-    // 5. Se os dados são novos, limpar a lista antiga e processar a nova
+    // Se os dados são novos, processar o NOVO formato de array
     Serial.println("Dados novos detectados. Atualizando a lista de usuários...");
     numeroDeTagsAutorizadas = 0;
+    
+    JsonArray usuariosArray = doc["usuarios"].as<JsonArray>();
 
-    // Itera sobre cada par chave:valor DENTRO do objeto 'users'
-    for (JsonPair kv : users) {
+    for (JsonObject user : usuariosArray) {
       if (numeroDeTagsAutorizadas >= MAX_TAGS) {
         Serial.println("Aviso: Número máximo de tags atingido. Alguns usuários foram ignorados.");
         break;
       }
 
-      // O resto da lógica é idêntico ao que você já tinha, mas agora dentro deste novo contexto
-      const char* uidHex = kv.key().c_str();
-      JsonObject userData = kv.value().as<JsonObject>();
+      // Extrai os dados do novo formato
+      const char* uidHex = user["codigo"];
+      const char* nome = user["nome"];
 
-      const char* nome = userData["usuario"];
-      int nivel = userData["nivel_acesso"];
+      // O campo "nivel_acesso" não existe mais neste formato, então foi removido.
+      
+      if (uidHex == nullptr || nome == nullptr) {
+        Serial.println("Aviso: Objeto de usuário inválido (sem 'codigo' ou 'nome').");
+        continue;
+      }
 
       // Converte o UID e copia os dados para nossa struct
       hexStringToByteArray(uidHex, usuariosAutorizados[numeroDeTagsAutorizadas].uid, TAG_LENGTH);
       strncpy(usuariosAutorizados[numeroDeTagsAutorizadas].nome, nome, sizeof(usuariosAutorizados[0].nome) - 1);
       usuariosAutorizados[numeroDeTagsAutorizadas].nome[sizeof(usuariosAutorizados[0].nome) - 1] = '\0';  // Garante terminação nula
-      usuariosAutorizados[numeroDeTagsAutorizadas].nivelAcesso = nivel;
+      // A linha 'nivelAcesso' foi removida.
 
       numeroDeTagsAutorizadas++;
     }
 
-    // 6. Se a atualização foi bem-sucedida, guardar o novo timestamp
+    // Se a atualização foi bem-sucedida, guardar o novo timestamp
     timestampDaListaLocal = novoTimestamp;
     dadosEstadoAtual = DadosEstado::SINCRONIZADO;
     lastSync = getTimestampAtual();
     Serial.print("Lista de usuários atualizada com sucesso. Novo timestamp local: ");
     Serial.println(timestampDaListaLocal);
+
   } else if (strcmp(topic, mqtt_topic_res_eqps) == 0) {
     Serial.println("Lista de equipamentos recebida. Processando...");
 
@@ -269,6 +302,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     // Chama a função para processar o array
     atualizarInventario(equipamentosArray);
+  }else if (strcmp(topic, mqtt_topic_ack_eqps) == 0) {
+    // --- MUDANÇA (LÓGICA 3: ACK de Equipamentos) ---
+    // O servidor confirmou que recebeu nossa atualização de equipamentos.
+    // Agora podemos marcar o estado como SINCRONIZADO.
+    
+    if (dadosEstadoAtual == SINCRONIZANDO) {
+        Serial.println("ACK do servidor recebido. Equipamentos sincronizados.");
+        dadosEstadoAtual = DadosEstado::SINCRONIZADO;
+        lastSync = getTimestampAtual(); // Atualiza o lastSync geral
+    }
   }
 }
 

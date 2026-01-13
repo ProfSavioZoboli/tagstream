@@ -63,7 +63,7 @@ bool checkWiFiConnection() {
     last_wifi_check = now;
     Serial.println("WiFi desconectado. Tentando reconectar...");
     WiFi.disconnect();
-    WiFi.reconnect();
+    setupWiFi();
     // Não bloqueamos aqui para não travar o loop principal por muito tempo
   }
   return (WiFi.status() == WL_CONNECTED);

@@ -99,12 +99,14 @@ void loop() {
   if (checkWiFiConnection()) {
     if (!mqttIsConnected()) {
       reconnect_mqtt();
-    }
-    mqttLoop();
-    checkMqttSync();
-    if (logRepoCountPending() > 0) {
-      displayShowMensagem("Enviando logs\npendentes...");
-      flushLogQueue();
+
+    } else {
+      mqttLoop();
+      checkMqttSync();
+      if (logRepoCountPending() > 0) {
+        displayShowMensagem("Enviando logs\npendentes...");
+        flushLogQueue();
+      }
     }
   }
 
@@ -135,13 +137,21 @@ void loop() {
             // Verifica se completou o código *999#
             if (strcmp(idleBuffer, "*999#") == 0) {
               Serial.println("CODIGO DE RESET DETECTADO!");
+              displayShowTempMensagem("RESET",2000);
               performFactoryReset();
               idleIndex = 0;  // Reset buffer
             }
 
             if (strcmp(idleBuffer, "*1138") == 0) {
               Serial.println("CODIGO DO STAR WARS!");
+              displayShowTempMensagem("IM YOUR FATHER",2000);
               buzzerTocarStarWars();
+              idleIndex = 0;  // Reset buffer
+            }
+            if (strcmp(idleBuffer, "*5843") == 0) {
+              Serial.println("CODIGO DO SUPER MARIO!");
+              displayShowTempMensagem("ITS ME LUIGI",2000);
+              buzzerTocarMarioMoeda();
               idleIndex = 0;  // Reset buffer
             }
           }
@@ -214,7 +224,6 @@ void handleOcupado() {
               } else {
                 buzzerSoundOperationFail();
                 displayShowTempMensagem("Erro:\nJa emprestado", 3000);
-                
               }
             } else if (operacaoAtual == OP_DEVOLUCAO) {
               if (handleDevolucao(inputBuffer)) {
@@ -223,7 +232,6 @@ void handleOcupado() {
               } else {
                 buzzerSoundOperationFail();
                 displayShowTempMensagem("Erro:\nJa devolvido", 3000);
-                
               }
             } else {
             }
